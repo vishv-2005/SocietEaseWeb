@@ -1,0 +1,29 @@
+# === Build artifacts ===
+build/
+dist/
+*.war
+*.ear
+
+# === IDE files ===
+nbproject/private/
+.nb-gradle/
+.idea/
+*.iml
+.vscode/
+
+# === OS files ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Environment / Secrets ===
+.env
+*.env
+*.key
+
+# === Logs ===
+*.log
+logs/
+
+# === Compiled classes ===
+*.class

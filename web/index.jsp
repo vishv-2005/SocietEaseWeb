@@ -1,73 +1,46 @@
-<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Welcome - SocietEase</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #74ebd5, #ACB6E5);
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .container {
-            background-color: white;
-            padding: 40px;
-            padding-right:70px;
-            border-radius: 15px;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-            text-align: center;
-            width: 90%;
-            max-width: 400px;
-        }
-
-        h1 {
-            color: #333;
-            margin-bottom: 30px;
-            margin-left: 50px;
-        }
-
-        .btn {
-            display: inline-block;
-            width: 100%;
-            padding: 12px 20px;
-            margin: 10px 0;
-            font-size: 16px;
-            color: white;
-            background-color: #007BFF;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background 0.3s ease;
-            text-decoration: none;
-        }
-
-        .btn:hover {
-            background-color: #0056b3;
-        }
-
-        .note {
-            margin-top: 20px;
-            margin-left: 50px;
-            font-size: 12px;
-            color: #666;
-        }
-    </style>
+    <meta name="description" content="SocietEase — Modern society management platform. Manage residents, maintenance, complaints, and more.">
+    <title>SocietEase — Society Management Made Easy</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Welcome to SocietEase</h1>
-        <a href="adminDashboard.jsp" class="btn">Login as Admin</a>
-        <a href="residentDashboard.jsp" class="btn">Login as Resident</a>
-        <div class="note">Please choose your role to continue</div>
+    <div class="landing-hero">
+        <div class="landing-content">
+            <h1>Societ<span style="color:#a5b4fc">Ease</span></h1>
+            <p>The modern platform for residential society management. Register your society, manage residents, collect maintenance, and streamline operations — all in one place.</p>
+            <div class="landing-actions">
+                <a href="register.jsp" class="btn btn-white btn-lg" id="btn-register">Register Your Society</a>
+                <a href="login.jsp" class="btn btn-outline btn-lg" id="btn-login">Login</a>
+            </div>
+
+            <div style="margin-top: 4rem; display: flex; gap: 3rem; justify-content: center; flex-wrap: wrap; opacity: 0.9;">
+                <div>
+                    <div style="font-size: 2.5rem; font-weight: 800;">🏢</div>
+                    <div style="font-weight: 600; margin-top: 0.5rem;">Multi-Tower Support</div>
+                    <div style="font-size: 0.85rem; opacity: 0.8;">Dynamic tower & apartment<br>generation</div>
+                </div>
+                <div>
+                    <div style="font-size: 2.5rem; font-weight: 800;">💳</div>
+                    <div style="font-weight: 600; margin-top: 0.5rem;">Online Payments</div>
+                    <div style="font-size: 0.85rem; opacity: 0.8;">Razorpay integration<br>UPI, Cards, NetBanking</div>
+                </div>
+                <div>
+                    <div style="font-size: 2.5rem; font-weight: 800;">🔒</div>
+                    <div style="font-weight: 600; margin-top: 0.5rem;">Encrypted & Secure</div>
+                    <div style="font-size: 0.85rem; opacity: 0.8;">AES-256 encrypted<br>resident data</div>
+                </div>
+                <div>
+                    <div style="font-size: 2.5rem; font-weight: 800;">📧</div>
+                    <div style="font-weight: 600; margin-top: 0.5rem;">Email Alerts</div>
+                    <div style="font-size: 0.85rem; opacity: 0.8;">Notices, payments<br>& complaint updates</div>
+                </div>
+            </div>
+        </div>
     </div>
 </body>
 </html>

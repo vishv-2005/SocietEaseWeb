@@ -1,55 +1,73 @@
 package servlets;
 
 import storage.DBConnector;
+import util.InputValidator;
 import java.io.IOException;
 import java.sql.*;
-import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.*;
 
-@WebServlet("/fileComplaint")
+/**
+ * Handles complaint filing by residents.
+ */
+@WebServlet("/FileComplaintServlet")
 public class FileComplaintServlet extends HttpServlet {
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        List<Map<String, Object>> apartments = new ArrayList<>();
-        try (Connection conn = DBConnector.getConnection()) {
-            String sql = "SELECT apartmentNumber FROM resident WHERE name IS NOT NULL ORDER BY apartmentNumber";
-            try (PreparedStatement stmt = conn.prepareStatement(sql);
-                 ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    Map<String, Object> apt = new HashMap<>();
-                    apt.put("apartmentNumber", rs.getInt("apartmentNumber"));
-                    apartments.add(apt);
-                }
-            }
-        } catch (SQLException e) {
-            throw new ServletException(e);
-        }
-        request.setAttribute("apartments", apartments);
-        request.getRequestDispatcher("fileComplaint.jsp").forward(request, response);
-    }
+
+    private static final Logger LOGGER = Logger.getLogger(FileComplaintServlet.class.getName());
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        String apartment = request.getParameter("apartment");
-        String content = request.getParameter("content");
-        String date = request.getParameter("date");
-        try (Connection conn = DBConnector.getConnection()) {
-            String sql = "INSERT INTO complaint (apartmentNumber, description, dateFiled, status) VALUES (?, ?, ?, 'Pending')";
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setInt(1, Integer.parseInt(apartment));
-                stmt.setString(2, content);
-                stmt.setDate(3, java.sql.Date.valueOf(date));
-                stmt.executeUpdate();
-            }
-        } catch (SQLException e) {
-            // Optionally handle error
+
+        HttpSession session = request.getSession(false);
+        if (session == null || session.getAttribute("societyId") == null) {
+            response.sendRedirect(request.getContextPath() + "/login.jsp");
+            return;
         }
-        response.sendRedirect("fileComplaint");
+
+        int societyId = (int) session.getAttribute("societyId");
+
+        try {
+            String description = InputValidator.requireNonEmpty(request.getParameter("description"), "Description");
+
+            try (Connection conn = DBConnector.getConnection()) {
+                // Get the resident's apartment (for now, use first occupied apartment)
+                int apartmentId = 0;
+                String aptSql = "SELECT apartment_id FROM apartment WHERE society_id=? AND status != 'VACANT' LIMIT 1";
+                try (PreparedStatement stmt = conn.prepareStatement(aptSql)) {
+                    stmt.setInt(1, societyId);
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        if (rs.next()) apartmentId = rs.getInt("apartment_id");
+                    }
+                }
+
+                if (apartmentId > 0) {
+                    String sql = "INSERT INTO complaint (society_id, apartment_id, description, date_filed) VALUES (?, ?, ?, CURDATE())";
+                    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                        stmt.setInt(1, societyId);
+                        stmt.setInt(2, apartmentId);
+                        stmt.setString(3, description);
+                        stmt.executeUpdate();
+                    }
+                    session.setAttribute("message", "Complaint submitted successfully! The society management will review it.");
+                    session.setAttribute("messageType", "success");
+                } else {
+                    session.setAttribute("message", "Error: No apartment assigned to your account.");
+                    session.setAttribute("messageType", "error");
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            session.setAttribute("message", e.getMessage());
+            session.setAttribute("messageType", "error");
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error filing complaint", e);
+            session.setAttribute("message", "Failed to submit complaint. Please try again.");
+            session.setAttribute("messageType", "error");
+        }
+
+        response.sendRedirect(request.getContextPath() + "/resident/fileComplaint.jsp");
     }
-} 
+}

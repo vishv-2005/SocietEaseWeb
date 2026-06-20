@@ -1,148 +1,150 @@
 package servlets;
 
+import storage.DBConnector;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import storage.DBConnector;
+import javax.servlet.http.*;
 
+/**
+ * Serves admin dashboard data as JSON (multi-tenant).
+ * Also handles the initial dashboard page render when ?view=dashboard is passed.
+ */
 @WebServlet("/adminDashboardData")
 public class AdminDashboardDataServlet extends HttpServlet {
+
+    private static final Logger LOGGER = Logger.getLogger(AdminDashboardDataServlet.class.getName());
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+
+        HttpSession session = request.getSession(false);
+        if (session == null || session.getAttribute("societyId") == null) {
+            response.sendRedirect(request.getContextPath() + "/login.jsp");
+            return;
+        }
+
+        int societyId = (int) session.getAttribute("societyId");
+
+        // If ?view=dashboard, forward to the JSP page
+        if ("dashboard".equals(request.getParameter("view"))) {
+            request.getRequestDispatcher("/admin/dashboard.jsp").forward(request, response);
+            return;
+        }
+
+        // Otherwise return JSON data
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
 
         try (Connection conn = DBConnector.getConnection()) {
-            StringBuilder jsonResponse = new StringBuilder();
-            jsonResponse.append("{");
+            StringBuilder json = new StringBuilder("{");
 
-            // Get total residents count
-            jsonResponse.append("\"totalResidents\":").append(getTotalResidents(conn)).append(",");
+            // Total apartments (occupied)
+            json.append("\"totalResidents\":").append(getCount(conn,
+                "SELECT COUNT(*) FROM apartment WHERE society_id=? AND status != 'VACANT'", societyId)).append(",");
 
-            // Get active complaints count (status = 'Pending')
-            jsonResponse.append("\"activeComplaints\":").append(getActiveComplaints(conn)).append(",");
+            // Total apartments
+            json.append("\"totalApartments\":").append(getCount(conn,
+                "SELECT COUNT(*) FROM apartment WHERE society_id=?", societyId)).append(",");
 
-            // Get total vehicles count
-            jsonResponse.append("\"totalVehicles\":").append(getTotalVehicles(conn)).append(",");
+            // Active complaints
+            json.append("\"activeComplaints\":").append(getCount(conn,
+                "SELECT COUNT(*) FROM complaint WHERE society_id=? AND status='PENDING'", societyId)).append(",");
 
-            // Get recent notices
-            jsonResponse.append("\"notices\":").append(getRecentNotices(conn)).append(",");
+            // Total vehicles
+            json.append("\"totalVehicles\":").append(getCount(conn,
+                "SELECT COUNT(*) FROM vehicle WHERE society_id=?", societyId)).append(",");
 
-            // Get active committees
-            jsonResponse.append("\"committees\":").append(getActiveCommittees(conn));
+            // Total helpers
+            json.append("\"totalHelpers\":").append(getCount(conn,
+                "SELECT COUNT(*) FROM helper WHERE society_id=? AND is_active=TRUE", societyId)).append(",");
 
-            jsonResponse.append("}");
+            // Recent notices
+            json.append("\"notices\":").append(getNotices(conn, societyId)).append(",");
+
+            // Active committees
+            json.append("\"committees\":").append(getCommittees(conn, societyId));
+
+            json.append("}");
 
             PrintWriter out = response.getWriter();
-            out.print(jsonResponse.toString());
+            out.print(json.toString());
             out.flush();
 
         } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Dashboard data error", e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             PrintWriter out = response.getWriter();
-            out.print("{\"error\": \"Database error: " + escapeJson(e.getMessage()) + "\"}");
+            out.print("{\"error\":\"An error occurred loading dashboard data.\"}");
             out.flush();
         }
     }
 
-    private int getTotalResidents(Connection conn) throws SQLException {
-        String query = "SELECT COUNT(*) FROM resident WHERE name IS NOT NULL";
-        try (PreparedStatement stmt = conn.prepareStatement(query);
-             ResultSet rs = stmt.executeQuery()) {
-            if (rs.next()) {
-                return rs.getInt(1);
+    private int getCount(Connection conn, String query, int societyId) throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, societyId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
             }
         }
-        return 0;
     }
 
-    private int getActiveComplaints(Connection conn) throws SQLException {
-        String query = "SELECT COUNT(*) FROM complaint WHERE status = 'Pending'";
-        try (PreparedStatement stmt = conn.prepareStatement(query);
-             ResultSet rs = stmt.executeQuery()) {
-            if (rs.next()) {
-                return rs.getInt(1);
-            }
-        }
-        return 0;
-    }
-
-    private int getTotalVehicles(Connection conn) throws SQLException {
-        String query = "SELECT COUNT(*) FROM vehicle";
-        try (PreparedStatement stmt = conn.prepareStatement(query);
-             ResultSet rs = stmt.executeQuery()) {
-            if (rs.next()) {
-                return rs.getInt(1);
-            }
-        }
-        return 0;
-    }
-
-    private String getRecentNotices(Connection conn) throws SQLException {
-        String query = "SELECT noticeID, content, issuedBy, date FROM notice ORDER BY date DESC LIMIT 7";
-        StringBuilder notices = new StringBuilder("[");
+    private String getNotices(Connection conn, int societyId) throws SQLException {
+        String sql = "SELECT n.notice_id, n.title, n.content, n.notice_date, c.name as committee_name " +
+                     "FROM notice n LEFT JOIN committee c ON n.committee_id = c.committee_id " +
+                     "WHERE n.society_id=? ORDER BY n.notice_date DESC LIMIT 7";
+        StringBuilder sb = new StringBuilder("[");
         boolean first = true;
-
-        try (PreparedStatement stmt = conn.prepareStatement(query);
-             ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) {
-                if (!first) {
-                    notices.append(",");
-                }
-                notices.append("{")
-                      .append("\"notice_id\":").append(rs.getInt("noticeID")).append(",")
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, societyId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    if (!first) sb.append(",");
+                    sb.append("{")
+                      .append("\"notice_id\":").append(rs.getInt("notice_id")).append(",")
+                      .append("\"title\":\"").append(escapeJson(rs.getString("title"))).append("\",")
                       .append("\"content\":\"").append(escapeJson(rs.getString("content"))).append("\",")
-                      .append("\"issued_by\":\"").append(escapeJson(String.valueOf(rs.getObject("issuedBy")))).append("\",")
-                      .append("\"date\":\"").append(rs.getDate("date")).append("\"")
+                      .append("\"committee\":\"").append(escapeJson(rs.getString("committee_name"))).append("\",")
+                      .append("\"date\":\"").append(rs.getDate("notice_date")).append("\"")
                       .append("}");
-                first = false;
+                    first = false;
+                }
             }
         }
-        notices.append("]");
-        return notices.toString();
+        sb.append("]");
+        return sb.toString();
     }
 
-    private String getActiveCommittees(Connection conn) throws SQLException {
-        String query = "SELECT committeeID, name, description, head, apartmentNumber FROM committee";
-        StringBuilder committees = new StringBuilder("[");
+    private String getCommittees(Connection conn, int societyId) throws SQLException {
+        String sql = "SELECT c.committee_id, c.name, c.description FROM committee WHERE c.society_id=?";
+        StringBuilder sb = new StringBuilder("[");
         boolean first = true;
-
-        try (PreparedStatement stmt = conn.prepareStatement(query);
-             ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) {
-                if (!first) {
-                    committees.append(",");
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, societyId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    if (!first) sb.append(",");
+                    sb.append("{")
+                      .append("\"committee_id\":").append(rs.getInt("committee_id")).append(",")
+                      .append("\"name\":\"").append(escapeJson(rs.getString("name"))).append("\",")
+                      .append("\"description\":\"").append(escapeJson(rs.getString("description"))).append("\"")
+                      .append("}");
+                    first = false;
                 }
-                committees.append("{")
-                        .append("\"committee_id\":").append(rs.getInt("committeeID")).append(",")
-                        .append("\"name\":\"").append(escapeJson(rs.getString("name"))).append("\",")
-                        .append("\"description\":\"").append(escapeJson(rs.getString("description"))).append("\",")
-                        .append("\"head_name\":\"").append(escapeJson(rs.getString("head"))).append("\",")
-                        .append("\"apartment_number\":\"").append(escapeJson(String.valueOf(rs.getObject("apartmentNumber")))).append("\"")
-                        .append("}");
-                first = false;
             }
         }
-        committees.append("]");
-        return committees.toString();
+        sb.append("]");
+        return sb.toString();
     }
 
     private String escapeJson(String input) {
         if (input == null) return "";
-        return input.replace("\\", "\\\\")
-                   .replace("\"", "\\\"")
-                   .replace("\n", "\\n")
-                   .replace("\r", "\\r")
-                   .replace("\t", "\\t");
+        return input.replace("\\", "\\\\").replace("\"", "\\\"")
+                     .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
     }
 }
