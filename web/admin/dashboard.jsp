@@ -140,9 +140,9 @@
             return div.innerHTML;
         }
 
-        // Initial load + refresh every 30 seconds (not 2 seconds!)
+        // Initial load + refresh every 5 seconds for live data
         updateDashboard();
-        setInterval(updateDashboard, 30000);
+        setInterval(updateDashboard, 5000);
     </script>
 </body>
 </html>

@@ -83,11 +83,11 @@ public class AuthFilter implements Filter {
         CsrfUtil.getOrCreateToken(request);
 
         // Role-based access control
+        // ADMIN-ONLY endpoints (RP / SUPER_ADMIN)
         if (path.startsWith("/admin/") || path.startsWith("/ManageResidentServlet") ||
             path.startsWith("/ManageHelperServlet") || path.startsWith("/ManageCommitteesServlet") ||
             path.startsWith("/ManageComplaintsServlet") || path.startsWith("/IssueNoticeServlet") ||
-            path.startsWith("/MaintenanceRecordsServlet") || path.startsWith("/adminDashboardData") ||
-            path.startsWith("/CreateOrderServlet") || path.startsWith("/VerifyPaymentServlet")) {
+            path.startsWith("/MaintenanceRecordsServlet") || path.startsWith("/adminDashboardData")) {
 
             if (!"RP".equals(userRole) && !"SUPER_ADMIN".equals(userRole)) {
                 LOGGER.warning("Unauthorized admin access attempt by role: " + userRole + " to: " + path);
@@ -96,9 +96,14 @@ public class AuthFilter implements Filter {
             }
         }
 
-        if (path.startsWith("/resident/")) {
+        // RESIDENT pages and shared endpoints (any logged-in user)
+        if (path.startsWith("/resident/") || path.startsWith("/ResidentDataServlet") ||
+            path.startsWith("/CreateOrderServlet") || path.startsWith("/VerifyPaymentServlet") ||
+            path.startsWith("/FileComplaintServlet") || path.startsWith("/VehicleServlet")) {
+            // All logged-in users can access (session check already passed above)
+            // But verify they have a valid role
             if (!"RESIDENT".equals(userRole) && !"RP".equals(userRole) && !"SUPER_ADMIN".equals(userRole)) {
-                LOGGER.warning("Unauthorized resident access attempt by role: " + userRole + " to: " + path);
+                LOGGER.warning("Unauthorized access attempt by role: " + userRole + " to: " + path);
                 response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied.");
                 return;
             }

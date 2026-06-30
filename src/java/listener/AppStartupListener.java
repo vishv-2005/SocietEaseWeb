@@ -229,15 +229,30 @@ public class AppStartupListener implements ServletContextListener {
             );
             LOGGER.info("Table 'maintenance_payment' ready.");
 
-            // 12. Vehicle
+            // 12. Vehicle (migrate: drop old schema if incompatible)
+            try {
+                // Check if old schema exists (has 'number' column instead of 'registration_number')
+                stmt.executeQuery("SELECT registration_number FROM vehicle LIMIT 0");
+            } catch (SQLException e) {
+                // Old schema detected or table doesn't exist — recreate
+                LOGGER.info("Migrating vehicle table to new schema...");
+                try { stmt.executeUpdate("DROP TABLE IF EXISTS vehicle"); } catch (SQLException ignored) {}
+            }
             stmt.executeUpdate(
                 "CREATE TABLE IF NOT EXISTS vehicle (" +
                 "  vehicle_id INT AUTO_INCREMENT PRIMARY KEY," +
                 "  society_id INT NOT NULL," +
                 "  apartment_id INT NOT NULL," +
-                "  number VARCHAR(50) NOT NULL," +
-                "  type VARCHAR(20)," +
-                "  owner_name VARCHAR(100)," +
+                "  vehicle_type ENUM('2_WHEELER', '4_WHEELER') NOT NULL," +
+                "  registration_number VARCHAR(20) NOT NULL," +
+                "  make VARCHAR(50)," +
+                "  model VARCHAR(50)," +
+                "  color VARCHAR(30)," +
+                "  owner_name VARCHAR(100) NOT NULL," +
+                "  parking_slot VARCHAR(20)," +
+                "  registration_date DATE NOT NULL," +
+                "  is_active BOOLEAN DEFAULT TRUE," +
+                "  UNIQUE KEY unique_vehicle (society_id, registration_number)," +
                 "  FOREIGN KEY (society_id) REFERENCES society(society_id)," +
                 "  FOREIGN KEY (apartment_id) REFERENCES apartment(apartment_id)" +
                 ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"

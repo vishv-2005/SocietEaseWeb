@@ -19,6 +19,7 @@
                 <a href="${pageContext.request.contextPath}/resident/fileComplaint.jsp">📋 File Complaint</a>
                 <a href="${pageContext.request.contextPath}/resident/payMaintenance.jsp">💳 Pay Maintenance</a>
                 <a href="${pageContext.request.contextPath}/resident/paymentHistory.jsp">📄 Payment History</a>
+                <a href="${pageContext.request.contextPath}/resident/vehicleRegistration.jsp">🚗 My Vehicles</a>
             </div>
             <div class="sidebar-footer"><a href="${pageContext.request.contextPath}/LogoutServlet">🚪 Logout</a></div>
         </nav>
@@ -33,18 +34,37 @@
 
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-label">Your Society</div>
-                    <div class="stat-value" style="font-size:1.3rem;"><c:out value="${sessionScope.societyName}"/></div>
+                    <div class="stat-label">Your Apartment</div>
+                    <div class="stat-value" style="font-size:1.3rem;">
+                        <c:choose>
+                            <c:when test="${not empty sessionScope.apartmentLabel}"><c:out value="${sessionScope.apartmentLabel}"/></c:when>
+                            <c:otherwise>Not Assigned</c:otherwise>
+                        </c:choose>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Pending Complaints</div>
+                    <div class="stat-value" id="pending-complaints">—</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Quick Actions</div>
                     <div style="margin-top:0.75rem; display:flex; flex-direction:column; gap:0.5rem;">
                         <a href="${pageContext.request.contextPath}/resident/payMaintenance.jsp" class="btn btn-primary btn-sm">💳 Pay Maintenance</a>
                         <a href="${pageContext.request.contextPath}/resident/fileComplaint.jsp" class="btn btn-secondary btn-sm">📋 File Complaint</a>
+                        <a href="${pageContext.request.contextPath}/resident/vehicleRegistration.jsp" class="btn btn-secondary btn-sm">🚗 Register Vehicle</a>
                     </div>
                 </div>
             </div>
 
+            <!-- Complaints Section -->
+            <div class="card" style="margin-bottom:1.5rem;">
+                <div class="card-header"><h2>📋 My Complaints</h2></div>
+                <div class="card-body" id="resident-complaints">
+                    <p style="color:var(--text-muted);">Loading complaints...</p>
+                </div>
+            </div>
+
+            <!-- Notices Section -->
             <div class="card">
                 <div class="card-header"><h2>📢 Recent Notices</h2></div>
                 <div class="card-body" id="resident-notices">
@@ -55,9 +75,14 @@
     </div>
 
     <script>
-        fetch('${pageContext.request.contextPath}/adminDashboardData')
+        // Load dashboard data (notices + complaints count)
+        fetch('${pageContext.request.contextPath}/ResidentDataServlet?type=dashboard')
             .then(r => r.json())
             .then(data => {
+                // Pending complaints count
+                document.getElementById('pending-complaints').textContent = data.pendingComplaints || 0;
+
+                // Notices
                 const nl = document.getElementById('resident-notices');
                 if (data.notices && data.notices.length > 0) {
                     nl.innerHTML = data.notices.map(n =>
@@ -72,8 +97,32 @@
                     nl.innerHTML = '<p style="color:var(--text-muted);">No notices yet.</p>';
                 }
             }).catch(() => {
-                document.getElementById('resident-notices').innerHTML =
-                    '<p style="color:var(--text-muted);">Could not load notices.</p>';
+                document.getElementById('resident-notices').innerHTML = '<p style="color:var(--text-muted);">Could not load data.</p>';
+            });
+
+        // Load complaints
+        fetch('${pageContext.request.contextPath}/ResidentDataServlet?type=complaints')
+            .then(r => r.json())
+            .then(data => {
+                const cl = document.getElementById('resident-complaints');
+                if (data.complaints && data.complaints.length > 0) {
+                    cl.innerHTML = data.complaints.map(c => {
+                        let statusClass = c.status === 'RESOLVED' ? 'badge-success' :
+                                         c.status === 'IN_PROGRESS' ? 'badge-warning' : 'badge-error';
+                        return '<div style="padding:0.75rem 0;border-bottom:1px solid var(--border);">' +
+                            '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                            '<span style="font-weight:600;">' + escapeHtml(c.description.substring(0, Math.min(c.description.length, 100))) +
+                            (c.description.length > 100 ? '...' : '') + '</span>' +
+                            '<div style="display:flex;gap:0.5rem;align-items:center;">' +
+                            '<span class="badge ' + statusClass + '">' + escapeHtml(c.status) + '</span>' +
+                            '<span style="font-size:0.8rem;color:var(--text-muted);">' + escapeHtml(c.date) + '</span>' +
+                            '</div></div></div>';
+                    }).join('');
+                } else {
+                    cl.innerHTML = '<p style="color:var(--text-muted);">No complaints filed. Use "File Complaint" to report issues.</p>';
+                }
+            }).catch(() => {
+                document.getElementById('resident-complaints').innerHTML = '<p style="color:var(--text-muted);">Could not load complaints.</p>';
             });
 
         function escapeHtml(t) { if(!t) return ''; const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }

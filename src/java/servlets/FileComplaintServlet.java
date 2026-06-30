@@ -29,35 +29,28 @@ public class FileComplaintServlet extends HttpServlet {
         }
 
         int societyId = (int) session.getAttribute("societyId");
+        Integer apartmentId = (Integer) session.getAttribute("apartmentId");
+
+        if (apartmentId == null || apartmentId <= 0) {
+            session.setAttribute("message", "Your account is not linked to an apartment. Please contact your society admin.");
+            session.setAttribute("messageType", "error");
+            response.sendRedirect(request.getContextPath() + "/resident/fileComplaint.jsp");
+            return;
+        }
 
         try {
             String description = InputValidator.requireNonEmpty(request.getParameter("description"), "Description");
 
             try (Connection conn = DBConnector.getConnection()) {
-                // Get the resident's apartment (for now, use first occupied apartment)
-                int apartmentId = 0;
-                String aptSql = "SELECT apartment_id FROM apartment WHERE society_id=? AND status != 'VACANT' LIMIT 1";
-                try (PreparedStatement stmt = conn.prepareStatement(aptSql)) {
+                String sql = "INSERT INTO complaint (society_id, apartment_id, description, date_filed, status) VALUES (?, ?, ?, CURDATE(), 'PENDING')";
+                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                     stmt.setInt(1, societyId);
-                    try (ResultSet rs = stmt.executeQuery()) {
-                        if (rs.next()) apartmentId = rs.getInt("apartment_id");
-                    }
+                    stmt.setInt(2, apartmentId);
+                    stmt.setString(3, description);
+                    stmt.executeUpdate();
                 }
-
-                if (apartmentId > 0) {
-                    String sql = "INSERT INTO complaint (society_id, apartment_id, description, date_filed) VALUES (?, ?, ?, CURDATE())";
-                    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                        stmt.setInt(1, societyId);
-                        stmt.setInt(2, apartmentId);
-                        stmt.setString(3, description);
-                        stmt.executeUpdate();
-                    }
-                    session.setAttribute("message", "Complaint submitted successfully! The society management will review it.");
-                    session.setAttribute("messageType", "success");
-                } else {
-                    session.setAttribute("message", "Error: No apartment assigned to your account.");
-                    session.setAttribute("messageType", "error");
-                }
+                session.setAttribute("message", "Complaint submitted successfully! The society management will review it.");
+                session.setAttribute("messageType", "success");
             }
         } catch (IllegalArgumentException e) {
             session.setAttribute("message", e.getMessage());

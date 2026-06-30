@@ -19,6 +19,7 @@
                 <a href="${pageContext.request.contextPath}/resident/fileComplaint.jsp" class="active">📋 File Complaint</a>
                 <a href="${pageContext.request.contextPath}/resident/payMaintenance.jsp">💳 Pay Maintenance</a>
                 <a href="${pageContext.request.contextPath}/resident/paymentHistory.jsp">📄 Payment History</a>
+                <a href="${pageContext.request.contextPath}/resident/vehicleRegistration.jsp">🚗 My Vehicles</a>
             </div>
             <div class="sidebar-footer"><a href="${pageContext.request.contextPath}/LogoutServlet">🚪 Logout</a></div>
         </nav>

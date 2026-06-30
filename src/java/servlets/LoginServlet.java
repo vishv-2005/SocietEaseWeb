@@ -48,13 +48,44 @@ public class LoginServlet extends HttpServlet {
                         if (PasswordUtil.verifyPassword(password, storedHash)) {
                             // Login successful — create session
                             HttpSession session = request.getSession(true);
-                            session.setAttribute("userId", rs.getInt("user_id"));
-                            session.setAttribute("societyId", rs.getInt("society_id"));
+                            int userId = rs.getInt("user_id");
+                            int societyId = rs.getInt("society_id");
+                            session.setAttribute("userId", userId);
+                            session.setAttribute("societyId", societyId);
                             session.setAttribute("userEmail", rs.getString("email"));
                             session.setAttribute("userRole", rs.getString("role"));
                             session.setAttribute("userName", rs.getString("full_name"));
                             session.setAttribute("societyName", rs.getString("society_name"));
                             session.setMaxInactiveInterval(30 * 60); // 30 minutes
+
+                            // Look up resident's apartment and society's maintenance amount
+                            try {
+                                // Get apartment_id for this user
+                                String aptSql = "SELECT r.apartment_id, a.apartment_label FROM resident r " +
+                                                "JOIN apartment a ON r.apartment_id = a.apartment_id " +
+                                                "WHERE r.user_id=? AND r.is_active=TRUE LIMIT 1";
+                                try (PreparedStatement aptStmt = conn.prepareStatement(aptSql)) {
+                                    aptStmt.setInt(1, userId);
+                                    try (ResultSet aptRs = aptStmt.executeQuery()) {
+                                        if (aptRs.next()) {
+                                            session.setAttribute("apartmentId", aptRs.getInt("apartment_id"));
+                                            session.setAttribute("apartmentLabel", aptRs.getString("apartment_label"));
+                                        }
+                                    }
+                                }
+                                // Get maintenance amount for the society
+                                String maintSql = "SELECT maintenance_amount FROM society WHERE society_id=?";
+                                try (PreparedStatement maintStmt = conn.prepareStatement(maintSql)) {
+                                    maintStmt.setInt(1, societyId);
+                                    try (ResultSet maintRs = maintStmt.executeQuery()) {
+                                        if (maintRs.next()) {
+                                            session.setAttribute("maintenanceAmount", maintRs.getBigDecimal("maintenance_amount").intValue());
+                                        }
+                                    }
+                                }
+                            } catch (SQLException ex) {
+                                LOGGER.log(Level.WARNING, "Could not load apartment/maintenance info", ex);
+                            }
 
                             LOGGER.info("Login successful: " + email + " (role: " + rs.getString("role") + ")");
 

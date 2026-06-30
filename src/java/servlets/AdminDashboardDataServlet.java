@@ -121,7 +121,7 @@ public class AdminDashboardDataServlet extends HttpServlet {
     }
 
     private String getCommittees(Connection conn, int societyId) throws SQLException {
-        String sql = "SELECT c.committee_id, c.name, c.description FROM committee WHERE c.society_id=?";
+        String sql = "SELECT c.committee_id, c.name, c.description FROM committee c WHERE c.society_id=?";
         StringBuilder sb = new StringBuilder("[");
         boolean first = true;
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {

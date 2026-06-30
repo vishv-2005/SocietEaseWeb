@@ -19,6 +19,7 @@
                 <a href="${pageContext.request.contextPath}/resident/fileComplaint.jsp">📋 File Complaint</a>
                 <a href="${pageContext.request.contextPath}/resident/payMaintenance.jsp">💳 Pay Maintenance</a>
                 <a href="${pageContext.request.contextPath}/resident/paymentHistory.jsp">📄 Payment History</a>
+                <a href="${pageContext.request.contextPath}/resident/vehicleRegistration.jsp">🚗 My Vehicles</a>
             </div>
             <div class="sidebar-footer"><a href="${pageContext.request.contextPath}/LogoutServlet">🚪 Logout</a></div>
         </nav>
@@ -34,7 +35,7 @@
     </div>
 
     <script>
-        fetch('${pageContext.request.contextPath}/adminDashboardData')
+        fetch('${pageContext.request.contextPath}/ResidentDataServlet?type=notices')
             .then(r => r.json())
             .then(data => {
                 const nl = document.getElementById('notices-list');
@@ -52,7 +53,7 @@
                     nl.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:2rem;">No notices published yet.</p>';
                 }
             }).catch(() => {
-                document.getElementById('notices-list').innerHTML = '<p style="color:var(--text-muted);">Error loading notices.</p>';
+                document.getElementById('notices-list').innerHTML = '<p style="color:var(--text-muted);">Could not load notices. Please try refreshing.</p>';
             });
         function escapeHtml(t) { if(!t)return''; const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
     </script>

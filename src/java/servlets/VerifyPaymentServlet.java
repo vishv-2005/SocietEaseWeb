@@ -40,6 +40,7 @@ public class VerifyPaymentServlet extends HttpServlet {
         }
 
         int societyId = (int) session.getAttribute("societyId");
+        Integer apartmentId = (Integer) session.getAttribute("apartmentId");
         String paymentId = request.getParameter("razorpay_payment_id");
         String orderId = request.getParameter("razorpay_order_id");
         String signature = request.getParameter("razorpay_signature");
@@ -47,6 +48,11 @@ public class VerifyPaymentServlet extends HttpServlet {
 
         if (paymentId == null || orderId == null || signature == null || month == null) {
             out.print("{\"status\":\"failed\",\"error\":\"Missing payment details\"}");
+            return;
+        }
+
+        if (apartmentId == null || apartmentId <= 0) {
+            out.print("{\"status\":\"failed\",\"error\":\"No apartment linked to your account\"}");
             return;
         }
 
@@ -61,38 +67,36 @@ public class VerifyPaymentServlet extends HttpServlet {
                 return;
             }
 
-            // Record payment in database
-            // For now, use society-level (in real app, apartment_id comes from resident session)
+            // Record payment in database using the resident's actual apartment
             try (Connection conn = DBConnector.getConnection()) {
-                // Get first occupied apartment for this society (placeholder — real app uses resident's apartment)
-                int apartmentId = 0;
-                String aptSql = "SELECT apartment_id FROM apartment WHERE society_id=? AND status != 'VACANT' LIMIT 1";
-                try (PreparedStatement stmt = conn.prepareStatement(aptSql)) {
+                // Get actual maintenance amount from society table
+                int amount = 1000;
+                String amtSql = "SELECT maintenance_amount FROM society WHERE society_id=?";
+                try (PreparedStatement amtStmt = conn.prepareStatement(amtSql)) {
+                    amtStmt.setInt(1, societyId);
+                    try (ResultSet rs = amtStmt.executeQuery()) {
+                        if (rs.next()) amount = rs.getBigDecimal("maintenance_amount").intValue();
+                    }
+                }
+
+                String sql = "INSERT INTO maintenance_payment (society_id, apartment_id, amount, payment_month, " +
+                             "razorpay_order_id, razorpay_payment_id, razorpay_signature, status, mode_of_payment, payment_date) " +
+                             "VALUES (?, ?, ?, ?, ?, ?, ?, 'PAID', 'ONLINE', NOW()) " +
+                             "ON DUPLICATE KEY UPDATE status='PAID', razorpay_payment_id=?, razorpay_signature=?, payment_date=NOW()";
+                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                     stmt.setInt(1, societyId);
-                    try (ResultSet rs = stmt.executeQuery()) {
-                        if (rs.next()) apartmentId = rs.getInt("apartment_id");
-                    }
+                    stmt.setInt(2, apartmentId);
+                    stmt.setBigDecimal(3, new java.math.BigDecimal(amount));
+                    stmt.setString(4, month);
+                    stmt.setString(5, orderId);
+                    stmt.setString(6, paymentId);
+                    stmt.setString(7, signature);
+                    stmt.setString(8, paymentId);
+                    stmt.setString(9, signature);
+                    stmt.executeUpdate();
                 }
 
-                if (apartmentId > 0) {
-                    String sql = "INSERT INTO maintenance_payment (society_id, apartment_id, amount, payment_month, " +
-                                 "razorpay_order_id, razorpay_payment_id, razorpay_signature, status, mode_of_payment, payment_date) " +
-                                 "VALUES (?, ?, 1000.00, ?, ?, ?, ?, 'PAID', 'ONLINE', NOW()) " +
-                                 "ON DUPLICATE KEY UPDATE status='PAID', razorpay_payment_id=?, razorpay_signature=?, payment_date=NOW()";
-                    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                        stmt.setInt(1, societyId);
-                        stmt.setInt(2, apartmentId);
-                        stmt.setString(3, month);
-                        stmt.setString(4, orderId);
-                        stmt.setString(5, paymentId);
-                        stmt.setString(6, signature);
-                        stmt.setString(7, paymentId);
-                        stmt.setString(8, signature);
-                        stmt.executeUpdate();
-                    }
-                }
-
-                LOGGER.info("Payment verified and recorded: " + paymentId + " for month " + month);
+                LOGGER.info("Payment verified and recorded: " + paymentId + " for month " + month + ", apartment " + apartmentId);
                 out.print("{\"status\":\"success\",\"paymentId\":\"" + paymentId + "\"}");
             }
 
@@ -123,6 +127,9 @@ public class VerifyPaymentServlet extends HttpServlet {
 
     private static String getEnv(String key, String defaultValue) {
         String value = System.getenv(key);
-        return (value != null && !value.isEmpty()) ? value : defaultValue;
+        if (value != null && !value.isEmpty()) return value;
+        value = System.getProperty(key);
+        if (value != null && !value.isEmpty()) return value;
+        return defaultValue;
     }
 }

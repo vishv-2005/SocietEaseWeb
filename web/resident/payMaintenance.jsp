@@ -19,15 +19,26 @@
                 <a href="${pageContext.request.contextPath}/resident/fileComplaint.jsp">📋 File Complaint</a>
                 <a href="${pageContext.request.contextPath}/resident/payMaintenance.jsp" class="active">💳 Pay Maintenance</a>
                 <a href="${pageContext.request.contextPath}/resident/paymentHistory.jsp">📄 Payment History</a>
+                <a href="${pageContext.request.contextPath}/resident/vehicleRegistration.jsp">🚗 My Vehicles</a>
             </div>
             <div class="sidebar-footer"><a href="${pageContext.request.contextPath}/LogoutServlet">🚪 Logout</a></div>
         </nav>
 
         <main class="main-content">
             <div class="page-header">
-                <div><h1>Pay Maintenance</h1><p>Monthly maintenance fee: ₹1,000</p></div>
+                <div>
+                    <h1>Pay Maintenance</h1>
+                    <p>Monthly maintenance fee: ₹<c:out value="${sessionScope.maintenanceAmount != null ? sessionScope.maintenanceAmount : 1000}"/></p>
+                </div>
             </div>
 
+            <c:if test="${empty sessionScope.apartmentId}">
+                <div class="alert alert-error">
+                    Your account is not linked to an apartment. Please contact your society admin to assign you to an apartment before making payments.
+                </div>
+            </c:if>
+
+            <c:if test="${not empty sessionScope.apartmentId}">
             <div class="card" style="max-width:500px;">
                 <div class="card-header"><h2>💳 Make Payment</h2></div>
                 <div class="card-body">
@@ -41,12 +52,12 @@
                     <div style="background:var(--primary-bg); border-radius:var(--radius-sm); padding:1.25rem; margin:1rem 0;">
                         <div style="display:flex;justify-content:space-between;align-items:center;">
                             <span style="font-weight:600;">Maintenance Amount</span>
-                            <span style="font-size:1.5rem;font-weight:800;color:var(--primary);">₹1,000</span>
+                            <span style="font-size:1.5rem;font-weight:800;color:var(--primary);">₹<c:out value="${sessionScope.maintenanceAmount != null ? sessionScope.maintenanceAmount : 1000}"/></span>
                         </div>
                     </div>
 
                     <button class="btn btn-primary btn-lg" style="width:100%;" onclick="initiatePayment()" id="btn-pay">
-                        Pay ₹1,000 via Razorpay
+                        Pay ₹<c:out value="${sessionScope.maintenanceAmount != null ? sessionScope.maintenanceAmount : 1000}"/> via Razorpay
                     </button>
 
                     <p style="text-align:center; margin-top:1rem; font-size:0.8rem; color:var(--text-muted);">
@@ -54,11 +65,14 @@
                     </p>
                 </div>
             </div>
+            </c:if>
         </main>
     </div>
 
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script>
+        var maintenanceAmount = ${sessionScope.maintenanceAmount != null ? sessionScope.maintenanceAmount : 1000};
+
         function initiatePayment() {
             const month = document.getElementById('paymentMonth').value;
             if (!month) { alert('Please select a payment month.'); return; }
@@ -100,9 +114,14 @@
                 };
 
                 const rzp = new Razorpay(options);
+                rzp.on('payment.failed', function(resp) {
+                    showStatus('error', 'Payment failed: ' + resp.error.description);
+                    resetButton();
+                });
                 rzp.open();
             })
             .catch(err => {
+                console.error('Create order error:', err);
                 showStatus('error', 'Failed to create payment order. Please try again.');
                 resetButton();
             });
@@ -122,7 +141,7 @@
             .then(r => r.json())
             .then(data => {
                 if (data.status === 'success') {
-                    showStatus('success', '✅ Payment successful! Receipt has been sent to your email.');
+                    showStatus('success', '✅ Payment successful! Payment ID: ' + data.paymentId);
                 } else {
                     showStatus('error', 'Payment verification failed: ' + (data.error || 'Unknown error'));
                 }
@@ -141,7 +160,7 @@
 
         function resetButton() {
             document.getElementById('btn-pay').disabled = false;
-            document.getElementById('btn-pay').textContent = 'Pay ₹1,000 via Razorpay';
+            document.getElementById('btn-pay').textContent = 'Pay ₹' + maintenanceAmount + ' via Razorpay';
         }
 
         // Default to current month

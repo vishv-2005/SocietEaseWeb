@@ -40,6 +40,13 @@ public class CsrfFilter implements Filter {
                 return;
             }
 
+            // Exempt AJAX API endpoints that use session authentication
+            if ("/CreateOrderServlet".equals(path) || "/VerifyPaymentServlet".equals(path) ||
+                "/ResidentDataServlet".equals(path)) {
+                chain.doFilter(request, response);
+                return;
+            }
+
             // Exempt API endpoints that use other authentication (e.g., Razorpay webhooks)
             if (path.startsWith("/api/webhook")) {
                 chain.doFilter(request, response);
