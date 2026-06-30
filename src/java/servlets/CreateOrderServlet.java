@@ -8,18 +8,15 @@ import java.sql.*;
 import java.util.Base64;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.net.ssl.*;
+import java.security.cert.X509Certificate;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
 
 /**
  * Creates a Razorpay order via the Orders API (no SDK needed).
- * 
- * Uses HTTP POST to https://api.razorpay.com/v1/orders with Basic Auth.
- * 
- * Environment / System Properties:
- *   RAZORPAY_KEY_ID     - Your Razorpay Key ID  (e.g. rzp_test_xxx)
- *   RAZORPAY_KEY_SECRET - Your Razorpay Key Secret
+ * Compatible with GlassFish 4.1 / older Java versions.
  */
 @WebServlet("/CreateOrderServlet")
 public class CreateOrderServlet extends HttpServlet {
@@ -40,11 +37,14 @@ public class CreateOrderServlet extends HttpServlet {
             return;
         }
 
-        String keyId = getEnv("RAZORPAY_KEY_ID", "");
-        String keySecret = getEnv("RAZORPAY_KEY_SECRET", "");
+        String keyId = util.AppConfig.get("RAZORPAY_KEY_ID");
+        String keySecret = util.AppConfig.get("RAZORPAY_KEY_SECRET");
 
-        if (keyId.isEmpty() || keySecret.isEmpty() || keyId.equals("rzp_test_PLACEHOLDER")) {
-            LOGGER.severe("Razorpay keys not configured! RAZORPAY_KEY_ID=" + keyId);
+        LOGGER.info("Razorpay keys: ID=" + (keyId.isEmpty() ? "(EMPTY)" : keyId.substring(0, Math.min(keyId.length(), 12)) + "...") +
+                    ", SECRET=" + (keySecret.isEmpty() ? "(EMPTY)" : "(set, " + keySecret.length() + " chars)"));
+
+        if (keyId.isEmpty() || keySecret.isEmpty()) {
+            LOGGER.severe("Razorpay keys not found in config.properties!");
             out.print("{\"error\":\"Payment gateway not configured. Please contact admin.\"}");
             return;
         }
@@ -71,17 +71,17 @@ public class CreateOrderServlet extends HttpServlet {
             }
 
             // Call Razorpay Orders API
-            String receipt = "rcpt_" + societyId + "_" + month.replace("-", "");
-            String orderId = createRazorpayOrder(keyId, keySecret, amountPaise, receipt);
+            String receipt = "rcpt_" + societyId + "_" + month.replace("-", "").replace(",", "").replace(" ", "");
+            String[] result = createRazorpayOrder(keyId, keySecret, amountPaise, receipt);
 
-            if (orderId == null) {
-                out.print("{\"error\":\"Failed to create payment order. Please try again.\"}");
+            if (result[0] == null) {
+                out.print("{\"error\":\"" + escapeJson(result[1]) + "\"}");
                 return;
             }
 
-            LOGGER.info("Razorpay order created: " + orderId + " for society " + societyId + ", month " + month);
+            LOGGER.info("Razorpay order created: " + result[0] + " for society " + societyId + ", month " + month);
 
-            out.print("{\"orderId\":\"" + orderId + "\","
+            out.print("{\"orderId\":\"" + result[0] + "\","
                     + "\"amount\":" + amountPaise + ","
                     + "\"razorpayKeyId\":\"" + keyId + "\""
                     + "}");
@@ -93,23 +93,36 @@ public class CreateOrderServlet extends HttpServlet {
     }
 
     /**
-     * Calls Razorpay Orders API via HTTP POST.
-     * POST https://api.razorpay.com/v1/orders
-     * Auth: Basic (key_id:key_secret)
-     * Body: {"amount":..., "currency":"INR", "receipt":"..."}
-     *
-     * @return The order ID string, or null on failure
+     * Calls Razorpay Orders API via HTTPS POST.
+     * @return String[2]: [0]=orderId (null on failure), [1]=error message
      */
-    private String createRazorpayOrder(String keyId, String keySecret, int amountPaise, String receipt) {
-        HttpURLConnection conn = null;
+    private String[] createRazorpayOrder(String keyId, String keySecret, int amountPaise, String receipt) {
+        HttpsURLConnection conn = null;
         try {
+            // Set up SSL context that trusts all certs (for GlassFish 4.1 compatibility)
+            SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
+            TrustManager[] trustAllCerts = new TrustManager[]{
+                new X509TrustManager() {
+                    public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
+                    public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+                    public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+                }
+            };
+            sslContext.init(null, trustAllCerts, new java.security.SecureRandom());
+
             URL url = new URL("https://api.razorpay.com/v1/orders");
-            conn = (HttpURLConnection) url.openConnection();
+            conn = (HttpsURLConnection) url.openConnection();
+            conn.setSSLSocketFactory(sslContext.getSocketFactory());
+            conn.setHostnameVerifier(new HostnameVerifier() {
+                public boolean verify(String hostname, SSLSession session) { return true; }
+            });
+
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
             conn.setRequestProperty("Content-Type", "application/json");
-            conn.setConnectTimeout(10000);
-            conn.setReadTimeout(10000);
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setConnectTimeout(15000);
+            conn.setReadTimeout(15000);
 
             // Basic Auth: Base64(key_id:key_secret)
             String auth = keyId + ":" + keySecret;
@@ -121,35 +134,52 @@ public class CreateOrderServlet extends HttpServlet {
                          + "\"currency\":\"INR\","
                          + "\"receipt\":\"" + receipt + "\"}";
 
+            LOGGER.info("Razorpay API request: POST /v1/orders body=" + body);
+
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(body.getBytes("UTF-8"));
                 os.flush();
             }
 
             int statusCode = conn.getResponseCode();
+            LOGGER.info("Razorpay API response code: " + statusCode);
 
             if (statusCode == 200 || statusCode == 201) {
                 String responseBody = readStream(conn.getInputStream());
-                // Parse order ID from JSON response (simple extraction, no library needed)
-                // Response format: {"id":"order_xxx", ...}
+                LOGGER.info("Razorpay API success response: " + responseBody);
                 String orderId = extractJsonValue(responseBody, "id");
-                LOGGER.info("Razorpay API response OK. Order: " + orderId);
-                return orderId;
+                if (orderId != null && orderId.startsWith("order_")) {
+                    return new String[]{orderId, null};
+                } else {
+                    return new String[]{null, "Invalid order response from Razorpay"};
+                }
             } else {
-                String errorBody = readStream(conn.getErrorStream());
+                String errorBody = "";
+                try { errorBody = readStream(conn.getErrorStream()); } catch (Exception ignored) {}
                 LOGGER.severe("Razorpay API error (HTTP " + statusCode + "): " + errorBody);
-                return null;
+
+                // Parse error description from Razorpay response
+                String errorDesc = extractJsonValue(errorBody, "description");
+                if (errorDesc == null || errorDesc.isEmpty()) {
+                    errorDesc = "Razorpay returned HTTP " + statusCode;
+                }
+                return new String[]{null, errorDesc};
             }
 
+        } catch (javax.net.ssl.SSLHandshakeException e) {
+            LOGGER.log(Level.SEVERE, "SSL Handshake failed - TLS version issue", e);
+            return new String[]{null, "SSL connection failed. Server may need TLS update."};
+        } catch (java.net.SocketTimeoutException e) {
+            LOGGER.log(Level.SEVERE, "Razorpay API timeout", e);
+            return new String[]{null, "Payment server timed out. Please try again."};
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Failed to call Razorpay API", e);
-            return null;
+            LOGGER.log(Level.SEVERE, "Failed to call Razorpay API: " + e.getClass().getName() + ": " + e.getMessage(), e);
+            return new String[]{null, "Connection error: " + e.getMessage()};
         } finally {
             if (conn != null) conn.disconnect();
         }
     }
 
-    /** Read an InputStream to a String. */
     private String readStream(InputStream is) throws IOException {
         if (is == null) return "";
         StringBuilder sb = new StringBuilder();
@@ -162,27 +192,21 @@ public class CreateOrderServlet extends HttpServlet {
         return sb.toString();
     }
 
-    /** Simple JSON value extractor for a given key (no library needed). */
     private String extractJsonValue(String json, String key) {
         String searchKey = "\"" + key + "\"";
         int keyIdx = json.indexOf(searchKey);
         if (keyIdx < 0) return null;
         int colonIdx = json.indexOf(":", keyIdx + searchKey.length());
         if (colonIdx < 0) return null;
-        // Skip whitespace and opening quote
         int start = colonIdx + 1;
         while (start < json.length() && (json.charAt(start) == ' ' || json.charAt(start) == '"')) start++;
-        // Find closing quote
         int end = json.indexOf("\"", start);
         if (end < 0) end = json.length();
         return json.substring(start, end);
     }
 
-    private static String getEnv(String key, String defaultValue) {
-        String value = System.getenv(key);
-        if (value != null && !value.isEmpty()) return value;
-        value = System.getProperty(key);
-        if (value != null && !value.isEmpty()) return value;
-        return defaultValue;
+    private String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

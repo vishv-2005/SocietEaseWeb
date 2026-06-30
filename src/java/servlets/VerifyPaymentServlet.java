@@ -23,7 +23,7 @@ import javax.servlet.http.*;
 public class VerifyPaymentServlet extends HttpServlet {
 
     private static final Logger LOGGER = Logger.getLogger(VerifyPaymentServlet.class.getName());
-    private static final String RAZORPAY_KEY_SECRET = getEnv("RAZORPAY_KEY_SECRET", "test_secret");
+    // Read at verification time from AppConfig (config.properties)
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
@@ -108,9 +108,10 @@ public class VerifyPaymentServlet extends HttpServlet {
 
     private boolean verifySignature(String orderId, String paymentId, String expectedSignature) {
         try {
+            String secret = util.AppConfig.get("RAZORPAY_KEY_SECRET", "test_secret");
             String data = orderId + "|" + paymentId;
             Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(RAZORPAY_KEY_SECRET.getBytes("UTF-8"), "HmacSHA256"));
+            mac.init(new SecretKeySpec(secret.getBytes("UTF-8"), "HmacSHA256"));
             byte[] hash = mac.doFinal(data.getBytes("UTF-8"));
 
             StringBuilder hex = new StringBuilder();
@@ -123,13 +124,5 @@ public class VerifyPaymentServlet extends HttpServlet {
             LOGGER.log(Level.SEVERE, "Signature verification error", e);
             return false;
         }
-    }
-
-    private static String getEnv(String key, String defaultValue) {
-        String value = System.getenv(key);
-        if (value != null && !value.isEmpty()) return value;
-        value = System.getProperty(key);
-        if (value != null && !value.isEmpty()) return value;
-        return defaultValue;
     }
 }

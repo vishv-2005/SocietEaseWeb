@@ -44,12 +44,12 @@ public class SecurityHeadersFilter implements Filter {
         // Content Security Policy — only allow resources from same origin + Razorpay + Bootstrap CDN
         response.setHeader("Content-Security-Policy",
             "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://cdn.jsdelivr.net; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.razorpay.com https://cdn.jsdelivr.net; " +
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; " +
             "font-src 'self' https://fonts.gstatic.com; " +
-            "frame-src https://api.razorpay.com; " +
-            "connect-src 'self' https://lumberjack.razorpay.com; " +
-            "img-src 'self' data:;"
+            "frame-src https://*.razorpay.com https://*.razorpay.in; " +
+            "connect-src 'self' https://*.razorpay.com https://*.razorpay.in; " +
+            "img-src 'self' data: https://*.razorpay.com;"
         );
 
         // Cache control for authenticated pages
