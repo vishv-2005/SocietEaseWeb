@@ -1,26 +1,45 @@
 # SocietEase — Multi-Tenant Society Management Platform
 
-SocietEase is a modern, secure, multi-tenant SaaS platform for residential society management. It allows Responsible Persons (RPs) to register their societies, automatically generates apartment structures, and provides a comprehensive dashboard for managing residents, helpers, committees, complaints, notices, and maintenance collections.
+SocietEase is a modern, secure, multi-tenant SaaS platform for residential society management. It allows Responsible Persons (RPs) to register their societies, automatically generates unit structures, and provides a comprehensive dashboard for managing residents, helpers, committees, complaints, notices, and maintenance collections.
 
-## ✨ Features
+Recently enhanced with **state-of-the-art 3D UI animations** and a **flexible multi-type society registration system**, SocietEase delivers a premium, engaging user experience tailored to any residential structure.
 
-- **Multi-Tenant SaaS Architecture:** Any number of societies can register and manage their operations independently on a single deployment.
-- **Automated Apartment Generation:** Set up towers, floors, and units per floor during registration; the system auto-generates apartment labels (e.g., A-101, B-304).
-- **Role-Based Access Control:** Distinct roles and dashboards for SuperAdmin (if applicable), Responsible Persons (RPs), and Residents.
+---
+
+## ✨ Key Features
+
+### 🏢 Flexible Multi-Type Society Registration
+- **Support for Any Structure:** Seamlessly register Apartments, Villas, Bungalows, Duplexes, Row Houses, Plots, or custom unit types.
+- **Dynamic Configuration:** Tell the system how your society works. Support for Blocks/Wings/Sectors/Phases or flat structures.
+- **Customizable Labeling:** Generate unit labels your way — plain sequential (`1, 2, 3`), block-unit (`A-1, B-3`), prefix style (`Villa-1`), or full labels.
+- **Live Preview:** Instantly see how your unit labels will be generated during the registration process.
+
+### 🎨 Stunning 3D UI & Animations (Premium UX)
+- **Three.js Landing Page:** Interactive 3D scene featuring floating particles, window glow pulsing, elastic camera easing, and color-shifting orbiting rings.
+- **Holographic Shimmer:** Premium rainbow gradient sweeps across cards on hover.
+- **Magnetic Interactions:** Buttons subtly pull toward the user's cursor for a physical, tactile feel, paired with expanding click ripples.
+- **Spring-Physics Entrances:** UI elements cascade and bounce into view using custom cubic-bezier timing functions.
+- **3D Wizard Transitions:** Registration steps flip into view with depth perspective.
+- **Neon Focus Glows:** Input fields pulse with a cyan glow ring on focus, elevating standard forms.
+- **Parallax Ambient Shell:** Floating background orbs shift at different depths based on user scroll.
+
+### 🛡️ Core Platform Capabilities
+- **Multi-Tenant Architecture:** Multiple independent societies operate securely on a single deployment.
+- **Role-Based Access Control:** Distinct dashboards for Responsible Persons (RPs) and Residents.
 - **Robust Security & Privacy:**
-  - **AES-256-GCM Encryption:** Resident Personally Identifiable Information (PII) like names, phone numbers, emails, and Aadhar numbers are encrypted in the database.
-  - **BCrypt Password Hashing:** Secure password storage.
-  - **CSRF Protection:** Token-based validation on all state-changing POST requests.
-  - **Security Headers:** Strict Content Security Policy (CSP), X-Frame-Options, X-XSS-Protection.
-  - **XSS Prevention:** Output escaping via JSTL `<c:out>`.
-- **Payment Gateway Integration:** Razorpay integration for seamless monthly maintenance fee collection (supports UPI, Cards, NetBanking).
-- **Automated Email Notifications:** Asynchronous email alerts using JavaMail for notices, complaint status updates, payment receipts, and welcome emails.
-- **Auto-Initializing Database:** The application automatically provisions the required 13 database tables upon startup if they don't exist.
+  - **AES-256-GCM Encryption:** Encrypts PII (names, phone numbers, emails, Aadhar).
+  - **BCrypt Hashing:** Secure password storage.
+  - **CSRF & XSS Protection:** Token validation and JSTL output escaping.
+- **Payment Gateway Integration:** Razorpay integration for seamless maintenance fee collection (UPI, Cards, NetBanking).
+- **Automated Notifications:** Asynchronous JavaMail alerts for notices, complaints, receipts, and registration.
+- **Auto-Initializing Database:** Startup listeners automatically provision all required schemas and perform zero-downtime migrations.
+
+---
 
 ## 🛠️ Technology Stack
 
 - **Backend:** Java 8+, Servlets, JSP
-- **Frontend:** HTML5, Vanilla CSS (Custom Premium Design System), Vanilla JavaScript
+- **Frontend:** HTML5, Vanilla CSS (Premium 3D Design System), Vanilla JS, Three.js
 - **Database:** MySQL 8.0+
 - **Server:** Apache Tomcat / GlassFish
 - **Dependencies:** JSTL 1.2, Gson 2.10.1, JavaMail 1.6.2, MySQL Connector/J 9.2.0
@@ -41,43 +60,40 @@ Ensure your local MySQL server is running. Create an empty database:
 ```sql
 CREATE DATABASE societease;
 ```
-*Note: You do not need to run any SQL scripts to create tables. The `AppStartupListener` will automatically create all necessary tables when the application starts.*
+*Note: You do not need to run any SQL scripts to create tables. The `AppStartupListener` will automatically create and migrate all necessary tables when the application starts.*
 
 ### Step 2: Project Setup (NetBeans)
 
 1. Clone or download the repository.
 2. Open the project in NetBeans (`File -> Open Project`).
-3. **Dependencies:** The project requires a few JAR files. If they are not already in `web/WEB-INF/lib`, run the provided `download-deps.bat` script from the project root to fetch them automatically.
-4. **Environment Variables:** By default, the application attempts to connect to `jdbc:mysql://localhost:3306/societease` with the user `root` and an empty password. 
+3. **Dependencies:** Ensure JAR files are in `web/WEB-INF/lib`. Run the `download-deps.bat` script from the project root if needed.
+4. **Environment Variables:** By default, the app attempts to connect to `jdbc:mysql://localhost:3306/societease` with user `root` and an empty password.
 
-To use your specific database credentials or configure other services (like Email and Payments), you need to set environment variables. In NetBeans, you can pass these as JVM arguments:
-- Right-click the project -> **Properties** -> **Run**.
-- In the **VM Options** field, add:
-  ```
-  -DDB_URL=jdbc:mysql://localhost:3306/societease?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-  -DDB_USER=your_db_username
-  -DDB_PASSWORD=your_db_password
-  -DSOCIETEASE_ENCRYPT_KEY=your_secure_32_byte_base64_encoded_key
-  ```
-  *(To generate a new encryption key, you can temporarily run the `main` method in `util.EncryptionUtil.java`)*
+To use custom credentials, add VM Options in NetBeans (Right-click project -> **Properties** -> **Run** -> **VM Options**):
+```
+-DDB_URL=jdbc:mysql://localhost:3306/societease?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+-DDB_USER=your_db_username
+-DDB_PASSWORD=your_db_password
+-DSOCIETEASE_ENCRYPT_KEY=your_secure_32_byte_base64_encoded_key
+```
 
 ### Step 3: Run the Application
 
 1. **Clean and Build** the project (Shift + F11).
-2. **Run** the project (F6). It will deploy to your configured server (e.g., GlassFish).
-3. Open your browser and navigate to the application URL (usually `http://localhost:8080/SocietEaseWeb/`).
+2. **Run** the project (F6).
+3. Open your browser to the application URL (usually `http://localhost:8080/SocietEaseWeb/`).
 
 ### Step 4: First Use
 
-1. Click **"Register Your Society"** on the landing page.
-2. Complete the 3-step wizard to create a society, configure building towers/apartments, and create the Responsible Person (RP) account.
-3. Log in with the RP credentials to access the Admin Dashboard.
+1. Click **"Register Your Society"** on the landing page to experience the new 3D wizard.
+2. Choose between **Apartment/Tower** or **Individual Units** and configure your layout.
+3. Log in with the newly created RP credentials to access the Admin Dashboard.
 
 ---
 
 ## ⚙️ Configuration (Environment Variables)
 
-For full functionality, configure the following environment variables (or JVM properties `-Dkey=value`). In a production environment (like Railway.app), these are set in the deployment dashboard.
+For full functionality, configure the following environment variables (or JVM properties `-Dkey=value`):
 
 | Variable Name | Description | Default (Local) |
 |---------------|-------------|-----------------|
@@ -92,20 +108,17 @@ For full functionality, configure the following environment variables (or JVM pr
 
 ---
 
-## 🌐 Deployment Guide (e.g., Railway.app)
+## 🌐 Deployment Guide
 
-To make the application live on the internet, you can deploy it to PaaS providers like Railway, Heroku, or Render using a Tomcat Docker container.
+To deploy to PaaS providers like Railway, Heroku, or Render using a Tomcat Docker container:
 
 ### Preparing for Deployment
-
 1. **Database Provisioning:** Add a MySQL database plugin in your hosting provider's dashboard.
-2. **Set Environment Variables:** Copy the credentials provided by the MySQL plugin and set `DB_URL`, `DB_USER`, and `DB_PASSWORD` in your application service's variables.
-3. **Set Production Keys:** Generate a strong `SOCIETEASE_ENCRYPT_KEY`. Set up your live `SMTP_USER`/`SMTP_PASSWORD` and `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET`.
+2. **Set Environment Variables:** Add `DB_URL`, `DB_USER`, and `DB_PASSWORD`.
+3. **Set Production Keys:** Generate a strong `SOCIETEASE_ENCRYPT_KEY`. Set up live `SMTP` and `RAZORPAY` keys.
 
 ### Deployment using Docker (Tomcat)
-
 Create a `Dockerfile` in the root of your project:
-
 ```dockerfile
 FROM tomcat:9.0-jdk8-openjdk
 
@@ -113,22 +126,16 @@ FROM tomcat:9.0-jdk8-openjdk
 RUN rm -rf /usr/local/tomcat/webapps/*
 
 # Copy the built WAR file to Tomcat webapps directory as ROOT.war
-# Assuming the build process outputs SocietEaseWeb.war to the dist/ directory
 COPY dist/SocietEaseWeb.war /usr/local/tomcat/webapps/ROOT.war
 
 EXPOSE 8080
 CMD ["catalina.sh", "run"]
 ```
 
-If your platform supports building Java applications directly (via Maven/Gradle/Ant), configure the build command (e.g., `ant clean dist`) and the start command appropriately.
-
 ---
 
 ## 🛡️ Security Notes
 
 - **Never** commit `.env` files, actual passwords, or encryption keys to version control.
-- Ensure the production database is not publicly accessible unless strictly necessary (use VPC/private networks if possible).
-- The encryption key (`SOCIETEASE_ENCRYPT_KEY`) must remain constant once data is stored. If lost, all encrypted PII will be unrecoverable.
-
-## 📄 License
-*Specify your license here (e.g., MIT, GPL)*
+- Ensure the production database is not publicly accessible.
+- The encryption key (`SOCIETEASE_ENCRYPT_KEY`) must remain constant once data is stored. If lost, encrypted PII becomes unrecoverable.

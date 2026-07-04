@@ -14,7 +14,9 @@ import javax.servlet.http.*;
 
 /**
  * Handles new society registration.
- * Creates the society, generates towers/apartments, and creates the RP user account.
+ * Supports two types:
+ *   APARTMENT — towers with floors and units per floor (existing)
+ *   INDIVIDUAL — villas, bungalows, duplexes, row houses, etc. with flexible labeling
  */
 @WebServlet(name = "RegisterSocietyServlet", urlPatterns = {"/RegisterSocietyServlet"})
 public class RegisterSocietyServlet extends HttpServlet {
@@ -26,7 +28,7 @@ public class RegisterSocietyServlet extends HttpServlet {
             throws ServletException, IOException {
 
         try {
-            // Validate all inputs
+            // Validate common inputs
             String societyName = InputValidator.requireNonEmpty(request.getParameter("societyName"), "Society Name");
             String address = InputValidator.requireNonEmpty(request.getParameter("address"), "Address");
             String city = InputValidator.requireNonEmpty(request.getParameter("city"), "City");
@@ -36,10 +38,70 @@ public class RegisterSocietyServlet extends HttpServlet {
                 throw new IllegalArgumentException("Please enter a valid pincode.");
             }
 
-            int totalTowers = InputValidator.requirePositiveRange(request.getParameter("totalTowers"), "Number of Towers", 1, 26);
-            int floorsPerTower = InputValidator.requirePositiveRange(request.getParameter("floorsPerTower"), "Floors per Tower", 1, 50);
-            int unitsPerFloor = InputValidator.requirePositiveRange(request.getParameter("unitsPerFloor"), "Units per Floor", 1, 20);
+            // Society type
+            String societyType = request.getParameter("societyType");
+            if (societyType == null || (!societyType.equals("APARTMENT") && !societyType.equals("INDIVIDUAL"))) {
+                societyType = "APARTMENT";
+            }
 
+            // Type-specific fields
+            int totalTowers = 1, floorsPerTower = 1, unitsPerFloor = 1;
+            String unitLabel = "Apartment", blockLabel = "Tower";
+            boolean hasBlocks = false;
+            int totalBlocks = 1, unitsPerBlock = 1;
+            String numberingStyle = "PREFIX";
+
+            if ("APARTMENT".equals(societyType)) {
+                totalTowers = InputValidator.requirePositiveRange(request.getParameter("totalTowers"), "Number of Towers", 1, 26);
+                floorsPerTower = InputValidator.requirePositiveRange(request.getParameter("floorsPerTower"), "Floors per Tower", 1, 50);
+                unitsPerFloor = InputValidator.requirePositiveRange(request.getParameter("unitsPerFloor"), "Units per Floor", 1, 20);
+                unitLabel = "Apartment";
+                blockLabel = "Tower";
+            } else {
+                // INDIVIDUAL type
+                unitLabel = request.getParameter("unitLabel");
+                if (unitLabel == null || unitLabel.trim().isEmpty() || "__custom__".equals(unitLabel)) {
+                    unitLabel = request.getParameter("customUnitLabel");
+                }
+                if (unitLabel == null || unitLabel.trim().isEmpty()) {
+                    unitLabel = "Unit";
+                }
+                unitLabel = unitLabel.trim();
+
+                hasBlocks = "on".equals(request.getParameter("hasBlocks"));
+                numberingStyle = request.getParameter("numberingStyle");
+                if (numberingStyle == null || numberingStyle.trim().isEmpty()) {
+                    numberingStyle = "PREFIX";
+                }
+
+                if (hasBlocks) {
+                    blockLabel = request.getParameter("blockLabel");
+                    if (blockLabel == null || blockLabel.trim().isEmpty() || "__custom__".equals(blockLabel)) {
+                        blockLabel = request.getParameter("customBlockLabel");
+                    }
+                    if (blockLabel == null || blockLabel.trim().isEmpty()) {
+                        blockLabel = "Block";
+                    }
+                    blockLabel = blockLabel.trim();
+
+                    totalBlocks = InputValidator.requirePositiveRange(request.getParameter("totalBlocks"), "Number of Blocks", 1, 26);
+                    unitsPerBlock = InputValidator.requirePositiveRange(request.getParameter("unitsPerBlock"), "Units per Block", 1, 200);
+
+                    // Store in tower-compatible fields for the society record
+                    totalTowers = totalBlocks;
+                    floorsPerTower = 1;
+                    unitsPerFloor = unitsPerBlock;
+                } else {
+                    int totalUnits = InputValidator.requirePositiveRange(request.getParameter("totalUnits"), "Total Units", 1, 500);
+                    unitsPerBlock = totalUnits; // reuse variable
+                    totalTowers = 1;
+                    floorsPerTower = 1;
+                    unitsPerFloor = totalUnits;
+                    blockLabel = "Main";
+                }
+            }
+
+            // RP Account
             String rpName = InputValidator.requireNonEmpty(request.getParameter("rpName"), "Your Name");
             String rpEmail = request.getParameter("rpEmail");
             if (!InputValidator.isValidEmail(rpEmail)) {
@@ -73,9 +135,9 @@ public class RegisterSocietyServlet extends HttpServlet {
                 conn.setAutoCommit(false);
 
                 try {
-                    // 1. Insert society
-                    String societySql = "INSERT INTO society (name, address, city, state, pincode, total_towers, floors_per_tower, units_per_floor) " +
-                                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                    // 1. Insert society with type info
+                    String societySql = "INSERT INTO society (name, address, city, state, pincode, total_towers, floors_per_tower, units_per_floor, society_type, unit_label, block_label) " +
+                                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
                     try (PreparedStatement stmt = conn.prepareStatement(societySql, PreparedStatement.RETURN_GENERATED_KEYS)) {
                         stmt.setString(1, societyName);
                         stmt.setString(2, address);
@@ -85,6 +147,9 @@ public class RegisterSocietyServlet extends HttpServlet {
                         stmt.setInt(6, totalTowers);
                         stmt.setInt(7, floorsPerTower);
                         stmt.setInt(8, unitsPerFloor);
+                        stmt.setString(9, societyType);
+                        stmt.setString(10, unitLabel);
+                        stmt.setString(11, blockLabel);
                         stmt.executeUpdate();
 
                         try (ResultSet keys = stmt.getGeneratedKeys()) {
@@ -105,7 +170,7 @@ public class RegisterSocietyServlet extends HttpServlet {
                     }
 
                     conn.commit();
-                    LOGGER.info("Society registered: " + societyName + " (ID: " + societyId + ") by " + rpEmail);
+                    LOGGER.info("Society registered: " + societyName + " (ID: " + societyId + ", Type: " + societyType + ") by " + rpEmail);
 
                 } catch (SQLException e) {
                     conn.rollback();
@@ -113,13 +178,20 @@ public class RegisterSocietyServlet extends HttpServlet {
                 }
             }
 
-            // 3. Generate towers and apartments (separate transaction inside ApartmentGenerator)
-            int totalApartments = ApartmentGenerator.generateApartments(societyId, totalTowers, floorsPerTower, unitsPerFloor);
+            // 3. Generate units based on type
+            int totalUnitsGenerated;
+            if ("APARTMENT".equals(societyType)) {
+                totalUnitsGenerated = ApartmentGenerator.generateApartments(societyId, totalTowers, floorsPerTower, unitsPerFloor);
+            } else {
+                totalUnitsGenerated = ApartmentGenerator.generateIndividualUnits(
+                    societyId, unitLabel, hasBlocks, blockLabel, totalBlocks, unitsPerBlock, numberingStyle
+                );
+            }
 
-            LOGGER.info("Registration complete. " + totalApartments + " apartments created for society: " + societyName);
+            LOGGER.info("Registration complete. " + totalUnitsGenerated + " units created for society: " + societyName);
 
             // Redirect to login with success message
-            response.sendRedirect(request.getContextPath() + "/login.jsp?msg=registered&apartments=" + totalApartments);
+            response.sendRedirect(request.getContextPath() + "/login.jsp?msg=registered&apartments=" + totalUnitsGenerated);
 
         } catch (IllegalArgumentException e) {
             request.setAttribute("error", e.getMessage());

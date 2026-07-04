@@ -27,6 +27,7 @@ public class AppStartupListener implements ServletContextListener {
         try {
             createDatabaseIfNotExists();
             createTablesIfNotExist();
+            migrateSchema();
             LOGGER.info("=== Database initialization complete ===");
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "FATAL: Database initialization failed!", e);
@@ -274,6 +275,55 @@ public class AppStartupListener implements ServletContextListener {
             LOGGER.info("Table 'email_log' ready.");
 
             LOGGER.info("All 13 tables verified/created successfully.");
+        }
+    }
+
+    /**
+     * Migrates existing schema to support multi-type societies.
+     * Safe to run repeatedly — skips if columns already exist.
+     */
+    private void migrateSchema() throws SQLException {
+        try (Connection conn = DBConnector.getConnection();
+             Statement stmt = conn.createStatement()) {
+
+            // Add society_type column
+            try {
+                stmt.executeUpdate(
+                    "ALTER TABLE society ADD COLUMN society_type VARCHAR(20) NOT NULL DEFAULT 'APARTMENT'"
+                );
+                LOGGER.info("Migration: Added 'society_type' column.");
+            } catch (SQLException e) {
+                // Column already exists — safe to ignore
+                if (!e.getMessage().contains("Duplicate column")) {
+                    LOGGER.fine("society_type column may already exist: " + e.getMessage());
+                }
+            }
+
+            // Add unit_label column
+            try {
+                stmt.executeUpdate(
+                    "ALTER TABLE society ADD COLUMN unit_label VARCHAR(50) NOT NULL DEFAULT 'Apartment'"
+                );
+                LOGGER.info("Migration: Added 'unit_label' column.");
+            } catch (SQLException e) {
+                if (!e.getMessage().contains("Duplicate column")) {
+                    LOGGER.fine("unit_label column may already exist: " + e.getMessage());
+                }
+            }
+
+            // Add block_label column
+            try {
+                stmt.executeUpdate(
+                    "ALTER TABLE society ADD COLUMN block_label VARCHAR(50) NOT NULL DEFAULT 'Tower'"
+                );
+                LOGGER.info("Migration: Added 'block_label' column.");
+            } catch (SQLException e) {
+                if (!e.getMessage().contains("Duplicate column")) {
+                    LOGGER.fine("block_label column may already exist: " + e.getMessage());
+                }
+            }
+
+            LOGGER.info("Schema migration complete.");
         }
     }
 
