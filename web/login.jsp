@@ -48,7 +48,7 @@
                         <input type="password" class="form-control" id="password" name="password"
                                placeholder="Enter your password" required>
                     </div>
-                    <button type="submit" class="btn btn-primary btn-lg" style="width:100; margin-top:0.5rem;">
+                    <button type="submit" class="btn btn-primary btn-lg" style="width:100%; margin-top:0.5rem;">
                         Sign In
                     </button>
                 </form>
@@ -63,5 +63,6 @@
             </div>
         </div>
     </div>
+    <script src="js/global-ui.js" defer></script>
 </body>
 </html>

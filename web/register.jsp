@@ -236,5 +236,6 @@
             err.style.display = 'none';
         });
     </script>
+    <script src="js/global-ui.js" defer></script>
 </body>
 </html>

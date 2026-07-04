@@ -168,5 +168,6 @@
         document.getElementById('paymentMonth').value =
             now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
     </script>
+    <script src="${pageContext.request.contextPath}/js/global-ui.js" defer></script>
 </body>
 </html>

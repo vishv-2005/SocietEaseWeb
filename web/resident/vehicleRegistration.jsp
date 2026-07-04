@@ -139,5 +139,6 @@
 
         function escapeHtml(t) { if(!t) return ''; const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
     </script>
+    <script src="${pageContext.request.contextPath}/js/global-ui.js" defer></script>
 </body>
 </html>

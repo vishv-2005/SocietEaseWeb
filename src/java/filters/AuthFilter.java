@@ -18,7 +18,7 @@ import java.util.logging.Logger;
  *   - / , /index.jsp (landing page)
  *   - /login.jsp, /LoginServlet (login flow)
  *   - /register.jsp, /RegisterSocietyServlet (registration flow)
- *   - /css/*, /images/* (static resources)
+ *   - /css/*, /js/*, /images/* (static resources)
  *   - /error/* (error pages)
  * 
  * Role-based access:
@@ -36,7 +36,7 @@ public class AuthFilter implements Filter {
     private static final List<String> PUBLIC_PATHS = Arrays.asList(
         "/index.jsp", "/login.jsp", "/register.jsp",
         "/LoginServlet", "/RegisterSocietyServlet",
-        "/css/", "/images/", "/error/",
+        "/css/", "/js/", "/images/", "/error/",
         "/favicon.ico"
     );
 
