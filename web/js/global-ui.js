@@ -163,4 +163,69 @@
             }
         });
     }
+    // --- Mobile Sidebar Toggle ---
+    (function initMobileSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        if (!sidebar) return; // Only on pages with a sidebar
+
+        // Create hamburger toggle button
+        const toggle = document.createElement('button');
+        toggle.className = 'sidebar-toggle';
+        toggle.setAttribute('aria-label', 'Toggle navigation menu');
+        toggle.innerHTML = '☰';
+        document.body.appendChild(toggle);
+
+        // Create overlay backdrop
+        const overlay = document.createElement('div');
+        overlay.className = 'sidebar-overlay';
+        overlay.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(overlay);
+
+        function openSidebar() {
+            sidebar.classList.add('open');
+            overlay.classList.add('active');
+            toggle.innerHTML = '✕';
+            toggle.setAttribute('aria-expanded', 'true');
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+            toggle.innerHTML = '☰';
+            toggle.setAttribute('aria-expanded', 'false');
+        }
+
+        // Toggle on hamburger click
+        toggle.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (sidebar.classList.contains('open')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        });
+
+        // Close on overlay click
+        overlay.addEventListener('click', closeSidebar);
+
+        // Close when a sidebar nav link is clicked
+        sidebar.querySelectorAll('.sidebar-nav a').forEach(function (link) {
+            link.addEventListener('click', closeSidebar);
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+                closeSidebar();
+            }
+        });
+
+        // Auto-close if window resized past mobile breakpoint
+        window.addEventListener('resize', function () {
+            if (window.innerWidth > 768) {
+                closeSidebar();
+            }
+        });
+    }());
 }());
+
