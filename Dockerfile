@@ -4,7 +4,7 @@ FROM tomcat:9.0-jdk8-openjdk
 RUN rm -rf /usr/local/tomcat/webapps/*
 
 # Copy the pre-built WAR file from your local NetBeans dist folder
-COPY dist/SocietEaseWeb.war /usr/local/tomcat/webapps/ROOT.war
+COPY dist/societeaseweb.war /usr/local/tomcat/webapps/ROOT.war
 
 EXPOSE 8080
 CMD ["catalina.sh", "run"]
