@@ -1,0 +1,29 @@
+User-agent: *
+Allow: /
+Allow: /index.jsp
+Allow: /login.jsp
+Allow: /register.jsp
+Allow: /css/
+Allow: /js/
+
+Disallow: /admin/
+Disallow: /resident/
+Disallow: /LoginServlet
+Disallow: /RegisterSocietyServlet
+Disallow: /ManageResidentServlet
+Disallow: /ManageHelperServlet
+Disallow: /ManageCommitteesServlet
+Disallow: /ManageComplaintsServlet
+Disallow: /IssueNoticeServlet
+Disallow: /MaintenanceRecordsServlet
+Disallow: /AdminDashboardDataServlet
+Disallow: /ResidentDataServlet
+Disallow: /CreateOrderServlet
+Disallow: /VerifyPaymentServlet
+Disallow: /FileComplaintServlet
+Disallow: /VehicleServlet
+Disallow: /LogoutServlet
+Disallow: /WEB-INF/
+Disallow: /error/
+
+Sitemap: https://societease.online/sitemap.xml

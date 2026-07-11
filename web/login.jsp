@@ -5,20 +5,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Log in to SocietEase to manage your society — residents, maintenance, complaints, notices, and payments in one dashboard.">
+    <meta name="robots" content="index, follow">
     <title>Login — SocietEase</title>
+    <link rel="canonical" href="https://societease.online/login.jsp">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+
+    <!-- Open Graph / Social Sharing -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Login — SocietEase">
+    <meta property="og:description" content="Sign in to manage your society — residents, maintenance, complaints, notices, and payments.">
+    <meta property="og:url" content="https://societease.online/login.jsp">
+    <meta property="og:image" content="https://societease.online/images/og-preview.jpg">
+    <meta property="og:site_name" content="SocietEase">
+
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="auth-page">
+    <main class="auth-page">
         <div class="auth-left">
             <div>
-                <h2>Welcome back to<br>Societ<span style="color:#a5b4fc">Ease</span></h2>
+                <p class="auth-left-heading" style="font-size:1.75rem;font-weight:700;line-height:1.3;">Welcome back to<br>Societ<span style="color:#a5b4fc">Ease</span></p>
                 <p>Manage your society with ease. Track residents, collect maintenance, issue notices, and more.</p>
             </div>
         </div>
         <div class="auth-right">
             <div class="auth-card">
-                <h2>Sign In</h2>
+                <h1>Sign In</h1>
                 <p class="subtitle">Enter your credentials to access your dashboard.</p>
 
                 <c:if test="${param.msg == 'registered'}">
@@ -62,7 +75,7 @@
                 </p>
             </div>
         </div>
-    </div>
+    </main>
     <script src="js/global-ui.js" defer></script>
 </body>
 </html>

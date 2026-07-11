@@ -5,7 +5,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="SocietEase - modern society management for residents, maintenance, complaints, notices, and secure operations.">
-    <title>SocietEase - Society Management Made Easy</title>
+    <meta name="robots" content="index, follow">
+    <title>SocietEase – Society Management Made Simple</title>
+    <link rel="canonical" href="https://societease.online/">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+
+    <!-- Open Graph / Social Sharing -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="SocietEase – Society Management Made Simple">
+    <meta property="og:description" content="Register a society, manage residents, collect maintenance, resolve complaints, and send notices from one secure dashboard.">
+    <meta property="og:url" content="https://societease.online/">
+    <meta property="og:image" content="https://societease.online/images/og-preview.png">
+    <meta property="og:site_name" content="SocietEase">
+
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="landing-body">

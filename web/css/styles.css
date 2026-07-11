@@ -510,7 +510,7 @@ a:hover { color: var(--primary-dark); }
     padding: 3rem;
 }
 
-.auth-left h2 { font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem; }
+.auth-left h2, .auth-left-heading { font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem; }
 .auth-left p { font-size: 1.1rem; opacity: 0.85; max-width: 400px; }
 
 .auth-right {
@@ -530,7 +530,7 @@ a:hover { color: var(--primary-dark); }
     padding: 2.5rem;
 }
 
-.auth-card h2 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text); }
+.auth-card h1, .auth-card h2 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text); }
 .auth-card .subtitle { color: var(--text-secondary); margin-bottom: 2rem; }
 
 /* === Forms === */

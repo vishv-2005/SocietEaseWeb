@@ -37,7 +37,7 @@ public class AuthFilter implements Filter {
         "/index.jsp", "/login.jsp", "/register.jsp",
         "/LoginServlet", "/RegisterSocietyServlet",
         "/css/", "/js/", "/images/", "/error/",
-        "/favicon.ico"
+        "/favicon.ico", "/robots.txt", "/sitemap.xml"
     );
 
     @Override

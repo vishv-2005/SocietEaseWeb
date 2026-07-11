@@ -5,20 +5,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Register your residential society on SocietEase in under 5 minutes. Apartments, villas, duplexes, row houses — set up and manage them all.">
+    <meta name="robots" content="index, follow">
     <title>Register Your Society — SocietEase</title>
+    <link rel="canonical" href="https://societease.online/register.jsp">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+
+    <!-- Open Graph / Social Sharing -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Register Your Society — SocietEase">
+    <meta property="og:description" content="Set up any type of residential society in under 5 minutes. Apartments, villas, duplexes, row houses — we handle them all.">
+    <meta property="og:url" content="https://societease.online/register.jsp">
+    <meta property="og:image" content="https://societease.online/images/og-preview.jpg">
+    <meta property="og:site_name" content="SocietEase">
+
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="auth-page">
+    <main class="auth-page">
         <div class="auth-left">
             <div>
-                <h2>Register Your<br>Society on Societ<span style="color:#a5b4fc">Ease</span></h2>
+                <p class="auth-left-heading" style="font-size:1.75rem;font-weight:700;line-height:1.3;">Register Your<br>Society on Societ<span style="color:#a5b4fc">Ease</span></p>
                 <p>Set up any type of residential society in under 5 minutes. Apartments, villas, duplexes, row houses — we handle them all.</p>
             </div>
         </div>
         <div class="auth-right" style="overflow-y:auto;">
             <div class="auth-card" style="max-width:540px;">
-                <h2>Society Registration</h2>
+                <h1>Society Registration</h1>
                 <p class="subtitle">Fill in details to get started.</p>
 
                 <c:if test="${not empty error}">
@@ -264,7 +277,7 @@
                 </p>
             </div>
         </div>
-    </div>
+    </main>
 
     <script>
         let currentType = 'APARTMENT';
