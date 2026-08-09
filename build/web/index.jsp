@@ -15,7 +15,7 @@
     <meta property="og:title" content="SocietEase – Society Management Made Simple">
     <meta property="og:description" content="Register a society, manage residents, collect maintenance, resolve complaints, and send notices from one secure dashboard.">
     <meta property="og:url" content="https://societease.online/">
-    <meta property="og:image" content="https://societease.online/images/og-preview.png">
+    <meta property="og:image" content="https://societease.online/images/og-preview.jpg">
     <meta property="og:site_name" content="SocietEase">
 
     <link rel="stylesheet" href="css/styles.css">
