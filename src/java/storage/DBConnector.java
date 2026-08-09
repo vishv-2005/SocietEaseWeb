@@ -8,22 +8,30 @@ import java.util.logging.Logger;
 
 /**
  * Database connection manager using environment variables.
- * 
- * Environment variables:
- *   DB_URL      - JDBC URL (default: jdbc:mysql://localhost:3306/societease)
- *   DB_USER     - Database username (default: root)
- *   DB_PASSWORD  - Database password (default: empty)
- * 
- * For production, always set these environment variables.
- * Connection pooling is handled via simple connection caching for the servlet container.
+ *
+ * Environment variables (all read at startup):
+ *   DB_HOST     - MySQL host     (default: societease-db-societeaseweb.c.aivencloud.com)
+ *   DB_PORT     - MySQL port     (default: 24410)
+ *   DB_NAME     - Database name  (default: defaultdb)
+ *   DB_USER     - Username       (default: avnadmin)
+ *   DB_PASSWORD - Password       (NO default — MUST be set via environment)
+ *
+ * SSL note: The connection uses useSSL=true & requireSSL=true with
+ * verifyServerCertificate=false.  This encrypts the wire protocol but does NOT
+ * verify the server's identity (no CA certificate imported into the Java trust
+ * store).  This is an acceptable tradeoff for a student/personal project but
+ * should be hardened for production by importing Aiven's CA cert and setting
+ * verifyServerCertificate=true.
  */
 public class DBConnector {
 
     private static final Logger LOGGER = Logger.getLogger(DBConnector.class.getName());
 
-    private static String DB_URL;
-    private static String DB_USER;
-    private static String DB_PASSWORD;
+    private static String dbHost;
+    private static String dbPort;
+    private static String dbName;
+    private static String dbUser;
+    private static String dbPassword;
     private static boolean initialized = false;
 
     static {
@@ -31,11 +39,17 @@ public class DBConnector {
     }
 
     private static void initialize() {
-        // Read from environment variables with sensible defaults for local dev
-        DB_URL = getEnvOrDefault("DB_URL",
-                "jdbc:mysql://localhost:3306/societease?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8");
-        DB_USER = getEnvOrDefault("DB_USER", "root");
-        DB_PASSWORD = getEnvOrDefault("DB_PASSWORD", "d4d5Nf3Nf6Bf4");
+        dbHost = getEnvOrDefault("DB_HOST", "societease-db-societeaseweb.c.aivencloud.com");
+        dbPort = getEnvOrDefault("DB_PORT", "24410");
+        dbName = getEnvOrDefault("DB_NAME", "defaultdb");
+        dbUser = getEnvOrDefault("DB_USER", "avnadmin");
+
+        // Password MUST come from the environment — no hardcoded fallback.
+        dbPassword = getEnvOrDefault("DB_PASSWORD", null);
+        if (dbPassword == null || dbPassword.isEmpty()) {
+            LOGGER.severe("DB_PASSWORD is not set! Database connections will fail. "
+                    + "Set the DB_PASSWORD environment variable (or -DDB_PASSWORD system property).");
+        }
 
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
@@ -44,25 +58,47 @@ public class DBConnector {
             LOGGER.log(Level.SEVERE, "MySQL JDBC Driver not found!", e);
         }
         initialized = true;
+
+        LOGGER.info("DB target: " + dbHost + ":" + dbPort + "/" + dbName + " (user=" + dbUser + ")");
     }
 
     /**
-     * Gets a connection to the societease database.
+     * Builds the JDBC URL for a given database name (or empty string for server-level connection).
+     */
+    private static String buildJdbcUrl(String database) {
+        return "jdbc:mysql://" + dbHost + ":" + dbPort + "/" + database
+                + "?useSSL=true"
+                + "&requireSSL=true"
+                + "&verifyServerCertificate=false"
+                + "&allowPublicKeyRetrieval=true"
+                + "&serverTimezone=UTC"
+                + "&characterEncoding=UTF-8";
+    }
+
+    /**
+     * Gets a connection to the application database (DB_NAME).
      */
     public static Connection getConnection() throws SQLException {
         if (!initialized) initialize();
-        return DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        return DriverManager.getConnection(buildJdbcUrl(dbName), dbUser, dbPassword);
     }
 
     /**
      * Gets a connection to MySQL server without specifying a database.
-     * Used only during initial schema creation.
+     * Used only during initial schema creation (CREATE DATABASE IF NOT EXISTS).
      */
     public static Connection getServerConnection() throws SQLException {
         if (!initialized) initialize();
-        String serverUrl = getEnvOrDefault("DB_SERVER_URL",
-                "jdbc:mysql://localhost:3306/?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8");
-        return DriverManager.getConnection(serverUrl, DB_USER, DB_PASSWORD);
+        return DriverManager.getConnection(buildJdbcUrl(""), dbUser, dbPassword);
+    }
+
+    /**
+     * Returns the configured database name (read from DB_NAME env var).
+     * Used by AppStartupListener for CREATE DATABASE IF NOT EXISTS.
+     */
+    public static String getDatabaseName() {
+        if (!initialized) initialize();
+        return dbName;
     }
 
     private static String getEnvOrDefault(String key, String defaultValue) {
@@ -75,7 +111,7 @@ public class DBConnector {
         if (value != null && !value.isEmpty()) {
             return value;
         }
-        if (!"DB_PASSWORD".equals(key)) {
+        if (!"DB_PASSWORD".equals(key) && defaultValue != null) {
             LOGGER.info(key + " not set, using default: " + defaultValue);
         }
         return defaultValue;

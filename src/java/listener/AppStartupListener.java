@@ -19,7 +19,7 @@ import java.util.logging.Logger;
 public class AppStartupListener implements ServletContextListener {
 
     private static final Logger LOGGER = Logger.getLogger(AppStartupListener.class.getName());
-    private static final String DB_NAME = "societease";
+    private static final String DB_NAME = DBConnector.getDatabaseName();
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
