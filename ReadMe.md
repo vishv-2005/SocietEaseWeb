@@ -40,8 +40,9 @@ Recently enhanced with **state-of-the-art 3D UI animations** and a **flexible mu
 
 - **Backend:** Java 8+, Servlets, JSP
 - **Frontend:** HTML5, Vanilla CSS (Premium 3D Design System), Vanilla JS, Three.js
-- **Database:** MySQL 8.0+
-- **Server:** Apache Tomcat / GlassFish
+- **Database:** MySQL 8.0+ (hosted on Aiven, SSL connection)
+- **Server:** Apache Tomcat 9 / GlassFish
+- **DevOps:** Docker (multi-stage build), GitHub Actions, Oracle Cloud VM
 - **Dependencies:** JSTL 1.2, Gson 2.10.1, JavaMail 1.6.2, MySQL Connector/J 9.2.0
 
 ---
@@ -51,41 +52,46 @@ Recently enhanced with **state-of-the-art 3D UI animations** and a **flexible mu
 ### Prerequisites
 
 1. **Java Development Kit (JDK):** Version 8 or higher.
-2. **Database:** MySQL 8.0+ running locally (default port `3306`).
-3. **IDE:** NetBeans, IntelliJ IDEA, or Eclipse configured with a Java EE server (like GlassFish or Tomcat).
+2. **Database:** MySQL 8.0+ (local, or a managed instance such as Aiven). The app always connects with SSL (`useSSL=true&requireSSL=true`). A stock MySQL 8 server has SSL turned on by default, so this works locally too.
+3. **IDE (optional):** NetBeans, IntelliJ IDEA, or Eclipse configured with Tomcat or GlassFish. You can also skip the IDE and use Docker (see below).
 
-### Step 1: Database Setup
+### Option A: Run with Docker (recommended)
 
-Ensure your local MySQL server is running. Create an empty database:
-```sql
-CREATE DATABASE societease;
-```
-*Note: You do not need to run any SQL scripts to create tables. The `AppStartupListener` will automatically create and migrate all necessary tables when the application starts.*
+The `Dockerfile` compiles the source directly (multi-stage build), so you don't need a pre-built WAR or a local JDK.
 
-### Step 2: Project Setup (NetBeans)
+```bash
+docker build -t societease .
 
-1. Clone or download the repository.
-2. Open the project in NetBeans (`File -> Open Project`).
-3. **Dependencies:** Ensure JAR files are in `web/WEB-INF/lib`. Run the `download-deps.bat` script from the project root if needed.
-4. **Environment Variables:** By default, the app attempts to connect to `jdbc:mysql://localhost:3306/societease` with user `root` and an empty password.
-
-To use custom credentials, add VM Options in NetBeans (Right-click project -> **Properties** -> **Run** -> **VM Options**):
-```
--DDB_URL=jdbc:mysql://localhost:3306/societease?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
--DDB_USER=your_db_username
--DDB_PASSWORD=your_db_password
--DSOCIETEASE_ENCRYPT_KEY=your_secure_32_byte_base64_encoded_key
+docker run -d --name societease -p 8080:8080 \
+  -e DB_HOST=host.docker.internal -e DB_PORT=3306 \
+  -e DB_NAME=societease -e DB_USER=root -e DB_PASSWORD=your_password \
+  -e SOCIETEASE_ENCRYPT_KEY=your_base64_32_byte_key \
+  societease
 ```
 
-### Step 3: Run the Application
+Or put the variables in a `.env` file (it's git-ignored) and pass `--env-file .env`.
 
-1. **Clean and Build** the project (Shift + F11).
-2. **Run** the project (F6).
-3. Open your browser to the application URL (usually `http://localhost:8080/SocietEaseWeb/`).
+The app is served at the root context: `http://localhost:8080/`.
 
-### Step 4: First Use
+### Option B: Run from NetBeans
 
-1. Click **"Register Your Society"** on the landing page to experience the new 3D wizard.
+1. Clone the repository and open it in NetBeans (`File -> Open Project`).
+2. **Dependencies:** the required JARs are committed in `web/WEB-INF/lib`. If any are missing, run `download-deps.bat`.
+3. **Database credentials:** set them as environment variables, or as VM Options (Right-click project -> **Properties** -> **Run** -> **VM Options**):
+   ```
+   -DDB_HOST=localhost -DDB_PORT=3306 -DDB_NAME=societease -DDB_USER=root -DDB_PASSWORD=your_password
+   ```
+   > `SOCIETEASE_ENCRYPT_KEY`, `SMTP_*` are read **only from environment variables**, not from `-D` flags. Set them in your server's environment.
+4. **Clean and Build** (Shift + F11), then **Run** (F6).
+5. Open `http://localhost:8080/SocietEaseWeb/`.
+
+### Database Setup
+
+You don't need to run any SQL scripts. On startup, `AppStartupListener` runs `CREATE DATABASE IF NOT EXISTS` for `DB_NAME`, then creates and migrates all tables automatically.
+
+### First Use
+
+1. Click **"Register Your Society"** on the landing page to open the 3D registration wizard.
 2. Choose between **Apartment/Tower** or **Individual Units** and configure your layout.
 3. Log in with the newly created RP credentials to access the Admin Dashboard.
 
@@ -93,44 +99,51 @@ To use custom credentials, add VM Options in NetBeans (Right-click project -> **
 
 ## ⚙️ Configuration (Environment Variables)
 
-For full functionality, configure the following environment variables (or JVM properties `-Dkey=value`):
+| Variable | Description | Default | Read from |
+|----------|-------------|---------|-----------|
+| `DB_HOST` | MySQL host | `societease-db-societeaseweb.c.aivencloud.com` | env, `-D` |
+| `DB_PORT` | MySQL port | `24410` | env, `-D` |
+| `DB_NAME` | Database name (auto-created) | `defaultdb` | env, `-D` |
+| `DB_USER` | Database username | `avnadmin` | env, `-D` |
+| `DB_PASSWORD` | Database password | **none, required** | env, `-D` |
+| `SOCIETEASE_ENCRYPT_KEY` | Base64-encoded 256-bit AES key for PII | insecure dev fallback (logs a warning) | env |
+| `SMTP_HOST` / `SMTP_PORT` | Mail server | `smtp.gmail.com` / `587` | env |
+| `SMTP_USER` / `SMTP_PASSWORD` | Sender address / app password | *(empty, emails disabled)* | env |
+| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | Razorpay API credentials | *(empty)* | `config.properties`, `-D`, env |
 
-| Variable Name | Description | Default (Local) |
-|---------------|-------------|-----------------|
-| `DB_URL` | JDBC connection string | `jdbc:mysql://localhost:3306/societease` |
-| `DB_USER` | Database username | `root` |
-| `DB_PASSWORD` | Database password | *(empty)* |
-| `SOCIETEASE_ENCRYPT_KEY` | 256-bit AES Key (Base64) for PII | `DefaultFallbackSecretKeyForDev12` |
-| `SMTP_USER` | Email address for sending notifications | *(empty)* |
-| `SMTP_PASSWORD` | Email App Password | *(empty)* |
-| `RAZORPAY_KEY_ID` | Razorpay API Key ID | `rzp_test_PLACEHOLDER` |
-| `RAZORPAY_KEY_SECRET` | Razorpay API Secret | *(empty)* |
+The defaults point at the hosted Aiven database. For local development, set `DB_HOST`, `DB_PORT`, `DB_NAME` and `DB_USER`.
+
+To generate an encryption key:
+```bash
+openssl rand -base64 32
+```
 
 ---
 
-## 🌐 Deployment Guide
+## 🔄 CI/CD Pipeline
 
-To deploy to PaaS providers like Railway, Heroku, or Render using a Tomcat Docker container:
+GitHub Actions ([`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml)) runs on every push and pull request to `main`:
 
-### Preparing for Deployment
-1. **Database Provisioning:** Add a MySQL database plugin in your hosting provider's dashboard.
-2. **Set Environment Variables:** Add `DB_URL`, `DB_USER`, and `DB_PASSWORD`.
-3. **Set Production Keys:** Generate a strong `SOCIETEASE_ENCRYPT_KEY`. Set up live `SMTP` and `RAZORPAY` keys.
+1. **Build & smoke test:** builds the Docker image from source, starts it against a throwaway MySQL 8.0 service container, and waits for `/robots.txt` to return HTTP 200.
+2. **Deploy to Oracle Cloud** (pushes to `main` only, `production` environment): connects to the VM over SSH, runs `git reset --hard origin/main`, rebuilds the image, restarts the `societease` container on port 8080 (loading the VM's `.env` if one exists), runs a health check, and prunes old images.
 
-### Deployment using Docker (Tomcat)
-Create a `Dockerfile` in the root of your project:
-```dockerfile
-FROM tomcat:9.0-jdk8-openjdk
+### Required GitHub secrets (`production` environment)
 
-# Remove default Tomcat apps
-RUN rm -rf /usr/local/tomcat/webapps/*
+| Secret | Purpose | Required |
+|--------|---------|----------|
+| `OCI_HOST` | Public IP / hostname of the Oracle Cloud VM | Yes* |
+| `OCI_SSH_KEY` | Private SSH key for the VM | Yes* |
+| `OCI_USERNAME` | SSH user | No (default `ubuntu`) |
+| `OCI_APP_DIR` | Path of the repo clone on the VM | No (default `~/SocietEaseWeb`) |
 
-# Copy the built WAR file to Tomcat webapps directory as ROOT.war
-COPY dist/SocietEaseWeb.war /usr/local/tomcat/webapps/ROOT.war
+\* If `OCI_HOST` or `OCI_SSH_KEY` is missing, the deploy step is skipped with a warning instead of failing.
 
-EXPOSE 8080
-CMD ["catalina.sh", "run"]
-```
+### One-time VM setup
+
+1. Install Docker and Git on the VM, and add the SSH user to the `docker` group.
+2. Clone this repository into `OCI_APP_DIR`.
+3. Create a `.env` file in that directory with the production values from the configuration table above.
+4. Open port `8080` in the VM firewall and in the OCI security list (or put a reverse proxy in front of it).
 
 ---
 
@@ -138,4 +151,6 @@ CMD ["catalina.sh", "run"]
 
 - **Never** commit `.env` files, actual passwords, or encryption keys to version control.
 - Ensure the production database is not publicly accessible.
+- `DB_PASSWORD` has no default and must always be supplied through the environment. Keep production values in the VM's git-ignored `.env` and in GitHub secrets.
+- The DB connection encrypts traffic but does not verify the server certificate (`verifyServerCertificate=false`). For hardened production use, import Aiven's CA certificate and turn verification on.
 - The encryption key (`SOCIETEASE_ENCRYPT_KEY`) must remain constant once data is stored. If lost, encrypted PII becomes unrecoverable.
