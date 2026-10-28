@@ -1,0 +1,127 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build & smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci-only-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-only-password"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image (compiles source inside Docker)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: societease:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test container
+        run: |
+          docker run -d --name app --network host \
+            -e DB_HOST=127.0.0.1 -e DB_PORT=3306 -e DB_NAME=societease_ci \
+            -e DB_USER=root -e DB_PASSWORD=ci-only-password \
+            societease:ci
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/robots.txt || true)
+            [ "$code" = "200" ] && echo "App is up" && exit 0
+            sleep 2
+          done
+          echo "App failed to start"; docker logs app; exit 1
+
+  deploy:
+    name: Deploy to Oracle Cloud
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Check Oracle Cloud SSH secrets
+        id: check_secrets
+        run: |
+          if [ -z "${{ secrets.OCI_HOST }}" ] || [ -z "${{ secrets.OCI_SSH_KEY }}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::OCI_HOST or OCI_SSH_KEY secret not set - skipping SSH deploy"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy to Oracle Cloud VM via SSH
+        if: steps.check_secrets.outputs.configured == 'true'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          username: ${{ secrets.OCI_USERNAME || 'ubuntu' }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          script: |
+            set -e
+            APP_DIR="${{ secrets.OCI_APP_DIR }}"
+            if [ -z "$APP_DIR" ]; then
+              APP_DIR="$HOME/SocietEaseWeb"
+            fi
+
+            echo "==> Deploying SocietEase in $APP_DIR"
+            cd "$APP_DIR"
+
+            echo "==> Pulling latest changes from main..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "==> Building Docker image..."
+            docker build -t societease:latest .
+
+            echo "==> Restarting container..."
+            docker stop societease || true
+            docker rm societease || true
+
+            ENV_FLAG=""
+            if [ -f ".env" ]; then
+              ENV_FLAG="--env-file .env"
+            fi
+
+            docker run -d \
+              --name societease \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              $ENV_FLAG \
+              societease:latest
+
+            echo "==> Health check..."
+            for i in $(seq 1 30); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/robots.txt || true)
+              [ "$code" = "200" ] && break
+              sleep 2
+            done
+            if [ "$code" != "200" ]; then
+              echo "Health check failed (HTTP $code)"; docker logs --tail 50 societease; exit 1
+            fi
+
+            echo "==> Cleaning old images..."
+            docker image prune -f
+            echo "==> Deployment complete!"
