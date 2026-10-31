@@ -39,7 +39,7 @@
         <section class="landing-stage">
             <div class="landing-copy">
                 <p class="landing-kicker">Multi-tenant residential operations</p>
-                <h1>SocietEase</h1>
+                <h1>Societease</h1>
                 <p class="landing-lede">
                     Register a society, generate towers and apartments, manage residents,
                     collect maintenance, resolve complaints, and send notices from one secure dashboard.

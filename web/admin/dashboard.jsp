@@ -34,7 +34,7 @@
         <main class="main-content">
             <div class="page-header">
                 <div>
-                    <h1>Dashboard</h1>
+                    <h1>Dashboardd</h1>
                     <p>Overview of <c:out value="${sessionScope.societyName}"/></p>
                 </div>
                 <button class="btn btn-secondary btn-sm" onclick="updateDashboard()" id="btn-refresh">↻ Refresh</button>
